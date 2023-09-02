@@ -2,4 +2,5 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/visualc/mbedtls_trial
+/visualc/mbedtls_trial/.vs/mbedtls_trial/v16
+/visualc/mbedtls_trial/x64/Debug
