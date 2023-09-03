@@ -201,12 +201,17 @@ static int ptls_mbedtls_cipher_setup_crypto_aes128_ecb(ptls_cipher_context_t *_c
     if (ret == 0) {
         ctx->super.do_transform = ptls_mbedtls_aes_ecb_transform;
     }
+
+    return ret;
 }
 
 static int ptls_mbedtls_cipher_setup_crypto_aes128_ctr(ptls_cipher_context_t *_ctx, int is_enc, const void *key)
 {
+#ifdef _WINDOWS
+    UNREFERENCED_PARAMETER(is_enc);
+#endif
     struct st_ptls_mbedtls_aes_context_t *ctx = (struct st_ptls_mbedtls_aes_context_t *)_ctx;
-    int ret = ptls_mbedtls_cipher_setup_crypto_aes(_ctx, is_enc, key, 128);
+    int ret = ptls_mbedtls_cipher_setup_crypto_aes(_ctx, 1, key, 128); /* No difference between CTR encrypt and decrypt */
 
     if (ret == 0) {
         ctx->super.do_transform = ptls_mbedtls_aes_ctr_transform;
@@ -230,8 +235,11 @@ static int ptls_mbedtls_cipher_setup_crypto_aes256_ecb(ptls_cipher_context_t *_c
 
 static int ptls_mbedtls_cipher_setup_crypto_aes256_ctr(ptls_cipher_context_t *_ctx, int is_enc, const void *key)
 {
+#ifdef _WINDOWS
+    UNREFERENCED_PARAMETER(is_enc);
+#endif
     struct st_ptls_mbedtls_aes_context_t *ctx = (struct st_ptls_mbedtls_aes_context_t *)_ctx;
-    int ret = ptls_mbedtls_cipher_setup_crypto_aes(_ctx, is_enc, key, 256);
+    int ret = ptls_mbedtls_cipher_setup_crypto_aes(_ctx, 1, key, 256); /* No difference between CTR encrypt and decrypt */
 
     if (ret == 0) {
         ctx->super.do_transform = ptls_mbedtls_aes_ctr_transform;
