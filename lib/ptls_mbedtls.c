@@ -68,11 +68,18 @@ static void ptls_mbedtls_sha256_final(struct st_ptls_hash_context_t* _ctx, void*
             ptls_mbedtls_sha256_final(cloned, md, PTLS_HASH_FINAL_MODE_FREE);
         }
     } else {
-        (void)mbedtls_sha256_finish(&ctx->mctx, (uint8_t*)md);
+        if (md != NULL) {
+            (void)mbedtls_sha256_finish(&ctx->mctx, (uint8_t*)md);
+        }
 
         if (mode == PTLS_HASH_FINAL_MODE_FREE) {
             mbedtls_sha256_free(&ctx->mctx);
             free(ctx);
+        }
+        else {
+            /* if mode = reset, reset the context */
+            mbedtls_sha256_init(&ctx->mctx);
+            mbedtls_sha256_starts(&ctx->mctx, 0 /* is224 = 0 */);
         }
     }
 }

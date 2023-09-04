@@ -27,12 +27,14 @@ extern "C" {
 #endif
 #include "picotls.h"
 
-extern ptls_aead_algorithm_t ptls_mbedtls_aes128gcm;
+extern ptls_hash_algorithm_t ptls_mbedtls_sha256;
 
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes128ecb;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes256ecb;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes128ctr;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes256ctr;
+
+extern ptls_aead_algorithm_t ptls_mbedtls_aes128gcm;
 
 #ifdef __cplusplus
 }
