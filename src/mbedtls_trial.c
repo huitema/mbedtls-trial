@@ -60,6 +60,10 @@ int main(arg, argv)
             ret = test_aead(&ptls_mbedtls_aes128gcm, &ptls_mbedtls_sha256, &ptls_minicrypto_aes128gcm, &ptls_minicrypto_sha256);
             printf("test aeads returns: %d\n", ret);
         }
+
+        if (ret != 0 && status == PSA_SUCCESS) {
+            status = PSA_ERROR_GENERIC_ERROR;
+        }
         /* Deinitialize the PSA crypto library. */
         mbedtls_psa_crypto_free();
     }
