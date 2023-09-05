@@ -2,7 +2,7 @@
 # set(MBEDTLS_LIBRARY mbedtls)
 # set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_SOURCE_DIR}/include)
 find_path(MBEDTLS_INCLUDE_DIRS
-    NAMES mbedtls.h
+    NAMES mbedtls/build_info.h psa/crypto.h
     HINTS ${MBEDTLS_PREFIX}/include/
         ${CMAKE_SOURCE_DIR}/../mbedtls/include/
         ${CMAKE_BINARY_DIR}/../mbedtls/include/
