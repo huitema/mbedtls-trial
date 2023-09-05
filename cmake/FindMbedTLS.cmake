@@ -1,6 +1,6 @@
 # - Try to find MbedTLS
-set(MBEDTLS_LIBRARY mbedtls)
-set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_SOURCE_DIR}/include)
+# set(MBEDTLS_LIBRARY mbedtls)
+# set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_SOURCE_DIR}/include)
 find_path(MBEDTLS_INCLUDE_DIRS
     NAMES mbedtls.h
     HINTS ${MBEDTLS_PREFIX}/include/
