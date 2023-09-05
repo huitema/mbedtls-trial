@@ -25,9 +25,9 @@ if(ENABLE_ASAN)
     if(NOT C__fsanitize_address_VALID OR NOT CXX__fsanitize_address_VALID)
         message(FATAL_ERROR "ENABLE_ASAN was requested, but not supported!")
     endif()
-    list(APPEND PICOQUIC_ADDITIONAL_C_FLAGS -fsanitize=address)
-    list(APPEND PICOQUIC_ADDITIONAL_CXX_FLAGS -fsanitize=address)
-    list(APPEND PICOQUIC_LINKER_FLAGS -fsanitize=address)
+    list(APPEND PTLS_MBEDTLS_ADDITIONAL_C_FLAGS -fsanitize=address)
+    list(APPEND PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS -fsanitize=address)
+    list(APPEND PTLS_MBEDTLS_LINKER_FLAGS -fsanitize=address)
 endif()
 
 if(ENABLE_UBSAN)
@@ -39,9 +39,9 @@ if(ENABLE_UBSAN)
     if(NOT C__fsanitize_undefined_VALID OR NOT CXX__fsanitize_undefined_VALID)
         message(FATAL_ERROR "ENABLE_UBSAN was requested, but not supported!")
     endif()
-    list(PREPEND PICOQUIC_ADDITIONAL_C_FLAGS -fsanitize=undefined)
-    list(PREPEND PICOQUIC_ADDITIONAL_CXX_FLAGS -fsanitize=undefined)
-    list(PREPEND PICOQUIC_LINKER_FLAGS -fsanitize=undefined)
+    list(PREPEND PTLS_MBEDTLS_ADDITIONAL_C_FLAGS -fsanitize=undefined)
+    list(PREPEND PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS -fsanitize=undefined)
+    list(PREPEND PTLS_MBEDTLS_LINKER_FLAGS -fsanitize=undefined)
 
     # Ease detecting of "Runtime errors". If such an error is found, print a verbose
     # error report and exit the program
@@ -53,9 +53,9 @@ if(ENABLE_UBSAN)
     if(NOT C__fnosanitize_recover_VALID OR NOT CXX__fnosanitize_recover_VALID)
         message(FATAL_ERROR "ENABLE_UBSAN was requested, but fno-sanitize-recover is not supported!")
     endif()
-    list(APPEND PICOQUIC_ADDITIONAL_C_FLAGS -fno-sanitize-recover)
-    list(APPEND PICOQUIC_ADDITIONAL_CXX_FLAGS -fno-sanitize-recover)
-    list(APPEND PICOQUIC_LINKER_FLAGS -fno-sanitize-recover)
+    list(APPEND PTLS_MBEDTLS_ADDITIONAL_C_FLAGS -fno-sanitize-recover)
+    list(APPEND PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS -fno-sanitize-recover)
+    list(APPEND PTLS_MBEDTLS_LINKER_FLAGS -fno-sanitize-recover)
 endif()
 
 set(PTLS_MBEDTLS_LIBRARY_FILES
@@ -64,8 +64,8 @@ set(PTLS_MBEDTLS_LIBRARY_FILES
 set(PTLS_MBEDTLS_CORE_HEADERS
      lib/ptls_mbedtls.h)
 
-OPTION(PICOQUIC_FETCH_PTLS "Fetch PicoTLS during configuration" OFF)
-if(PICOQUIC_FETCH_PTLS)
+OPTION(PTLS_MBEDTLS_FETCH_PTLS "Fetch PicoTLS during configuration" OFF)
+if(PTLS_MBEDTLS_FETCH_PTLS)
     include(FetchContent)
     FetchContent_Declare(picotls
         GIT_REPOSITORY      https://github.com/h2o/picotls.git
@@ -77,9 +77,10 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(PTLS REQUIRED)
 message(STATUS "picotls/include: ${PTLS_INCLUDE_DIRS}" )
 message(STATUS "picotls libraries: ${PTLS_LIBRARIES}" )
+find_package(MbedTLS REQUIRED)
+message(STATUS "mbedtls/include: ${MBEDTLS_INCLUDE_DIRS}")
+message(STATUS "mbedtls libraries: ${MBEDTLS_LIBRARIES}")
 
-# set_picoquic_compile_settings(TARGET) makes is easy to consistently
-# assign compiler build options to each of the following targets
 macro(set_ptls_mbedtls_compile_settings)
     set_target_properties(${ARGV0}
         PROPERTIES
@@ -95,53 +96,47 @@ macro(set_ptls_mbedtls_compile_settings)
         PRIVATE
             $<$<C_COMPILER_ID:Clang>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_C_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_C_FLAGS}>
             $<$<C_COMPILER_ID:AppleClang>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_C_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_C_FLAGS}>
             $<$<C_COMPILER_ID:GNU>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -frename-registers -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_C_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_C_FLAGS}>
             $<$<C_COMPILER_ID:MSVC>: >
             $<$<CXX_COMPILER_ID:Clang>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_CXX_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS}>
             $<$<CXX_COMPILER_ID:AppleClang>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_CXX_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS}>
             $<$<CXX_COMPILER_ID:GNU>: -O3 -Wall -fno-exceptions
                 -fno-signed-zeros -frename-registers -fno-trapping-math
-                ${PICOQUIC_ADDITIONAL_CXX_FLAGS}>
+                ${PTLS_MBEDTLS_ADDITIONAL_CXX_FLAGS}>
             $<$<CXX_COMPILER_ID:MSVC>: >)
-    target_compile_definitions(${ARGV0} PRIVATE ${PICOQUIC_COMPILE_DEFINITIONS})
-    target_link_options(${ARGV0} PRIVATE ${PICOQUIC_LINKER_FLAGS})
+    target_compile_definitions(${ARGV0} PRIVATE ${PTLS_MBEDTLS_COMPILE_DEFINITIONS})
+    target_link_options(${ARGV0} PRIVATE ${PTLS_MBEDTLS_LINKER_FLAGS})
 endmacro()
 
 
-add_library(ptls_mbedtls-core ${PICOQUIC_CORE_HEADERS} ${PICOQUIC_LIBRARY_FILES})
+add_library(ptls_mbedtls-core ${PTLS_MBEDTLS_CORE_HEADERS} ${PTLS_MBEDTLS_LIBRARY_FILES})
 target_include_directories(ptls_mbedtls-core
     PRIVATE
         ${PTLS_INCLUDE_DIRS}
     PUBLIC
         include)
 target_link_libraries(ptls_mbedtls-core
-    PRIVATE
-        ${OPENSSL_LIBRARIES}
     PUBLIC
         ${PTLS_LIBRARIES}
         Threads::Threads)
-set_picoquic_compile_settings(ptls_mbedtls-core)
+set_ptls_mbedtls_compile_settings(ptls_mbedtls-core)
 
 
 add_executable(ptls_mbedtls_trial
     src/mbedtls_trial.c)
 target_link_libraries(ptls_mbedtls_trial
     PRIVATE
-        ${PTLS_LIBRARIES}
-        # ${OPENSSL_LIBRARIES}
-        picoquic-log
-        picoquic-core
-        picohttp-core)
+        ${PTLS_LIBRARIES} # ${OPENSSL_LIBRARIES} ptls_mbedtls-core) picohttp-core)
 target_include_directories(ptls_mbedtls_trial PRIVATE include)
 set_ptls_mbedtls_compile_settings(ptls_mbedtls_trial)
 
