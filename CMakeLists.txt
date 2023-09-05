@@ -123,12 +123,12 @@ add_library(ptls_mbedtls-core ${PTLS_MBEDTLS_CORE_HEADERS} ${PTLS_MBEDTLS_LIBRAR
 target_include_directories(ptls_mbedtls-core
     PRIVATE
         ${PTLS_INCLUDE_DIRS}
+        ${MBEDTLS_INCLUDE_DIRS}
     PUBLIC
         include)
 target_link_libraries(ptls_mbedtls-core
     PUBLIC
-        ${PTLS_LIBRARIES}
-        Threads::Threads)
+        ${PTLS_LIBRARIES})
 set_ptls_mbedtls_compile_settings(ptls_mbedtls-core)
 
 
@@ -136,8 +136,14 @@ add_executable(ptls_mbedtls_trial
     src/mbedtls_trial.c)
 target_link_libraries(ptls_mbedtls_trial
     PRIVATE
-        ${PTLS_LIBRARIES} # ${OPENSSL_LIBRARIES} ptls_mbedtls-core) picohttp-core)
-target_include_directories(ptls_mbedtls_trial PRIVATE include)
+        ${PTLS_LIBRARIES}
+        ${MBEDTLS_LIBRARIES}
+        ptls_mbedtls-core)
+target_include_directories(ptls_mbedtls_trial 
+     PRIVATE
+        ${PTLS_INCLUDE_DIRS}
+        ${MBEDTLS_INCLUDE_DIRS}
+        include)
 set_ptls_mbedtls_compile_settings(ptls_mbedtls_trial)
 
 # get all project files for formatting
