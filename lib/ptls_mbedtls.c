@@ -302,8 +302,9 @@ ptls_mbedtls_cipher_setup_crypto_aes256_ctr};
 * The function will finish completing the aead structure, perform
 * initialization, and then document the function pointers:
 * 
-* ctx->super.dispose_crypto: release all resource
-* ctx->super.do_xor_iv: IV XOR with large nonce
+* ctx->super.dispose_crypto: release all resourc
+* ctx->super.do_get_iv: return IV
+* ctx->super.do_set_iv: set IV value
 * ctx->super.do_decrypt: decrypt function
 * ctx->super.do_encrypt_init: start encrypting one message
 * ctx->super.do_encrypt_update: feed more ciphertext to descriptor
@@ -342,21 +343,25 @@ void ptls_mbedtls_aead_dispose_crypto(struct st_ptls_aead_context_t* _ctx)
     psa_destroy_key(ctx->mctx.key);
 }
 
-void ptls_mbedtls_aead_do_xor_iv(struct st_ptls_aead_context_t* _ctx, const void* _bytes, size_t len)
+
+static void ptls_mbedtls_aead_get_iv(ptls_aead_context_t *_ctx, void *iv)
 {
-    /* XOR the IV with the specified values. */
     struct ptls_mbedtls_aead_context_t* ctx =
         (struct ptls_mbedtls_aead_context_t*)_ctx;
-    const uint8_t *bytes = _bytes;
 
-    for (size_t i = 0; i < len; i++) {
-        ctx->mctx.static_iv[i] ^= bytes[i];
-    }
+    memcpy(iv, ctx->mctx.static_iv, ctx->super.algo->iv_size);
+}
+
+static void ptls_mbedtls_aead_set_iv(ptls_aead_context_t *_ctx, const void *iv)
+{
+    struct ptls_mbedtls_aead_context_t* ctx =
+        (struct ptls_mbedtls_aead_context_t*)_ctx;
+
+    memcpy(ctx->mctx.static_iv, iv, ctx->super.algo->iv_size);
 }
 
 void ptls_mbedtls_aead_do_encrypt_init(struct st_ptls_aead_context_t* _ctx, uint64_t seq, const void* aad, size_t aadlen)
 {
-    int ret = 0;
     struct ptls_mbedtls_aead_context_t* ctx =
         (struct ptls_mbedtls_aead_context_t*)_ctx;
     psa_status_t status;
@@ -390,7 +395,6 @@ void ptls_mbedtls_aead_do_encrypt_init(struct st_ptls_aead_context_t* _ctx, uint
 
 size_t ptls_mbedtls_aead_do_encrypt_update(struct st_ptls_aead_context_t* _ctx, void* output, const void* input, size_t inlen)
 {
-    int ret = 0;
     size_t olen = 0;
     struct ptls_mbedtls_aead_context_t* ctx =
         (struct ptls_mbedtls_aead_context_t*)_ctx;
@@ -418,7 +422,6 @@ size_t ptls_mbedtls_aead_do_encrypt_update(struct st_ptls_aead_context_t* _ctx, 
 
 size_t ptls_mbedtls_aead_do_encrypt_final(struct st_ptls_aead_context_t* _ctx, void* output)
 {
-    int ret = 0;
     size_t olen = 0;
     struct ptls_mbedtls_aead_context_t* ctx =
         (struct ptls_mbedtls_aead_context_t*)_ctx;
@@ -559,7 +562,8 @@ static int ptls_mbedtls_aead_setup_crypto(ptls_aead_context_t *_ctx, int is_enc,
             ctx->super.do_decrypt = ptls_mbedtls_aead_do_decrypt;
         }
         ctx->super.dispose_crypto = ptls_mbedtls_aead_dispose_crypto;
-        ctx->super.do_xor_iv = ptls_mbedtls_aead_do_xor_iv;
+        ctx->super.do_get_iv = ptls_mbedtls_aead_get_iv;
+        ctx->super.do_set_iv = ptls_mbedtls_aead_set_iv;
     }
 
     return ret;
