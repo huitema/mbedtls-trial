@@ -17,7 +17,7 @@ int test_label(ptls_hash_algorithm_t* hash, ptls_hash_algorithm_t* ref);
 int test_cipher(ptls_cipher_algorithm_t* cipher, ptls_cipher_algorithm_t* cipher_ref);
 int test_aead(ptls_aead_algorithm_t* algo, ptls_hash_algorithm_t* hash, ptls_aead_algorithm_t* ref, ptls_hash_algorithm_t* hash_ref);
 
-int main(arg, argv)
+int main(int argc, char ** argv)
 {
     psa_status_t status = PSA_SUCCESS;
     ptls_cipher_algorithm_t* cipher_test[4] = {
