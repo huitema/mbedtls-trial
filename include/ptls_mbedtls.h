@@ -43,6 +43,8 @@ extern ptls_aead_algorithm_t ptls_mbedtls_aes128gcm;
 extern ptls_aead_algorithm_t ptls_mbedtls_aes256gcm;
 extern ptls_aead_algorithm_t ptls_mbedtls_chacha20poly1305;
 
+int ptls_mbedtls_init();
+void ptls_mbedtls_free();
 void ptls_mbedtls_random_bytes(void* buf, size_t len);
 
 #ifdef __cplusplus
