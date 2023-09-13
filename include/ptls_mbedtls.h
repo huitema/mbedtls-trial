@@ -28,13 +28,22 @@ extern "C" {
 #include "picotls.h"
 
 extern ptls_hash_algorithm_t ptls_mbedtls_sha256;
+extern ptls_hash_algorithm_t ptls_mbedtls_sha512;
+#if defined(MBEDTLS_SHA384_C)
+extern ptls_hash_algorithm_t ptls_mbedtls_sha384;
+#endif
 
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes128ecb;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes256ecb;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes128ctr;
 extern ptls_cipher_algorithm_t ptls_mbedtls_aes256ctr;
+extern ptls_cipher_algorithm_t ptls_mbedtls_chacha20;
 
 extern ptls_aead_algorithm_t ptls_mbedtls_aes128gcm;
+extern ptls_aead_algorithm_t ptls_mbedtls_aes256gcm;
+extern ptls_aead_algorithm_t ptls_mbedtls_chacha20poly1305;
+
+void ptls_mbedtls_random_bytes(void* buf, size_t len);
 
 #ifdef __cplusplus
 }
