@@ -73,7 +73,17 @@ int main(int argc, char ** argv)
         }
 
         if (ret == 0) {
-            ret = test_key_exchange(&ptls_minicrypto_secp256r1, &ptls_minicrypto_secp256r1);
+            ret = test_key_exchange(&ptls_mbedtls_secp256r1, &ptls_minicrypto_secp256r1);
+            if (ret != 0) {
+                printf("test key exchange secp256r1 mbedtls to minicrypto fails\n");
+            }
+            else {
+                ret = test_key_exchange(&ptls_minicrypto_secp256r1, &ptls_mbedtls_secp256r1);
+                if (ret != 0) {
+                    printf("test key exchange secp256r1 minicrypto to mbedtls  fails\n");
+                }
+            }
+            printf("test key exchange returns: %d\n", ret);
         }
 
         /* Deinitialize the PSA crypto library. */
