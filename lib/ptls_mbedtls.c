@@ -1,3 +1,25 @@
+/*
+* Copyright (c) 2023, Christian Huitema
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to
+* deal in the Software without restriction, including without limitation the
+* rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+* sell copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+*/
+
 #ifdef _WINDOWS
 #include "wincompat.h"
 #endif
@@ -957,3 +979,23 @@ ptls_key_exchange_algorithm_t ptls_mbedtls_secp256r1 = {.id = PTLS_GROUP_SECP256
 .name = PTLS_GROUP_NAME_SECP256R1,
 .create = ptls_mbedtls_secp256r1_create,
 .exchange = ptls_mbedtls_secp256r1_exchange};
+
+/* Instantiation of the generic key exchange API with x25519
+*/
+static int ptls_mbedtls_x25519_create(const struct st_ptls_key_exchange_algorithm_t* algo, ptls_key_exchange_context_t** ctx)
+{
+    return ptls_mbedtls_key_exchange_create(algo, ctx,
+        PSA_ALG_ECDH, PSA_ECC_FAMILY_MONTGOMERY, 255, 32);
+}
+
+static int ptls_mbedtls_x25519_exchange(const struct st_ptls_key_exchange_algorithm_t* algo, ptls_iovec_t* pubkey, ptls_iovec_t* secret,
+    ptls_iovec_t peerkey)
+{
+    return ptls_mbedtls_key_exchange_exchange(algo, pubkey, secret, peerkey,
+        PSA_ALG_ECDH, PSA_ECC_FAMILY_MONTGOMERY, 255, 32);
+}
+
+ptls_key_exchange_algorithm_t ptls_mbedtls_x25519 = {.id = PTLS_GROUP_X25519,
+.name = PTLS_GROUP_NAME_X25519,
+.create = ptls_mbedtls_x25519_create,
+.exchange = ptls_mbedtls_x25519_exchange};
