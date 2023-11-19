@@ -886,6 +886,17 @@ int test_load_one_der_key(char const* path)
     mbedtls_svc_key_id_t key_id = 0;
     size_t key_index = 0;
     size_t key_length = 0;
+    unsigned char hash[32];
+    const unsigned char h0[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24,
+        25, 26, 27, 28, 29, 30, 31, 32
+    };
+    unsigned char signature[512];
+    size_t signature_length = 0;
+    unsigned int signature_type = 0;
+
 
     if ((ret = mbedtls_pk_load_file(path, &buf, &n)) != 0) {
         return ret;
@@ -933,9 +944,9 @@ int test_load_one_der_key(char const* path)
                 }
                 else if (oid_length == sizeof(ptls_mbedtls_oid_ed25519) &&
                     memcmp(pem.private_buf + oid_index, ptls_mbedtls_oid_ed25519, sizeof(ptls_mbedtls_oid_ed25519)) == 0) {
-                    /* We recognized ED25519 */
-                    psa_set_key_type(&attributes, PSA_ALG_ED25519PH);
+                    /* We recognized ED25519 -- PSA_ECC_FAMILY_TWISTED_EDWARDS -- PSA_ALG_ED25519PH*/
                     psa_set_key_algorithm(&attributes, PSA_ALG_PURE_EDDSA);
+                    psa_set_key_type(&attributes, PSA_ECC_FAMILY_TWISTED_EDWARDS);
                     ret = test_parse_eddsa_key(pem.private_buf, pem.private_buflen, &key_index, &key_length);
                 }
                 else if (oid_length == sizeof(ptls_mbedtls_oid_rsa_key) &&
@@ -962,6 +973,22 @@ int test_load_one_der_key(char const* path)
                 ret = -1;
             }
             else {
+                /* get the key algorithm */
+                psa_algorithm_t algo = psa_get_key_algorithm(&attributes);
+                /* Try to sign something */
+                memcpy(hash, h0, 32);
+                /* Sign message using the key */
+                status = psa_sign_hash(key_id, algo,
+                    hash, sizeof(hash),
+                    signature, sizeof(signature),
+                    &signature_length);
+                if (status != PSA_SUCCESS) {
+                    printf("Failed to sign\n");
+                    ret = -1;
+                }
+                else {
+                    printf("Signed a message, key: %s, signature size: %zu\n", path, signature_length);
+                }
                 /* Destroy the key */
                 psa_destroy_key(key_id);
             }
