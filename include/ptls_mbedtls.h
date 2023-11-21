@@ -55,10 +55,16 @@ int ptls_mbedtls_init();
 void ptls_mbedtls_free();
 void ptls_mbedtls_random_bytes(void* buf, size_t len);
 
+typedef struct st_ptls_mbedtls_signature_scheme_t {
+    uint16_t scheme_id;
+    psa_algorithm_t hash_algo;
+} ptls_mbedtls_signature_scheme_t;
+
 typedef struct st_ptls_mbedtls_sign_certificate_t {
     ptls_sign_certificate_t super;
     mbedtls_svc_key_id_t key_id;
     psa_key_attributes_t attributes;
+    const ptls_mbedtls_signature_scheme_t * schemes;
 } ptls_mbedtls_sign_certificate_t;
 
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname);

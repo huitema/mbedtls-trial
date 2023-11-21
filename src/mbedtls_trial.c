@@ -519,26 +519,36 @@ int test_load_one_der_key(char const* path)
         ret = -1;
     }
     else {
+        /* Try to sign something */
         ptls_mbedtls_sign_certificate_t* signer = (ptls_mbedtls_sign_certificate_t*)
             (((unsigned char*)ctx.sign_certificate) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
         /* get the key algorithm */
         psa_algorithm_t algo = psa_get_key_algorithm(&signer->attributes);
-        /* Try to sign something */
+        ptls_buffer_t outbuf;
+        uint8_t outbuf_smallbuf[256];
+        ptls_iovec_t input = { hash, sizeof(hash) };
+        uint16_t selected_algorithm = 0;
+        int num_algorithms = 0;
+        uint16_t algorithms[16];
         memcpy(hash, h0, 32);
-        /* Sign message using the key */
-        status = psa_sign_hash(signer->key_id, algo,
-            hash, sizeof(hash),
-            signature, sizeof(signature),
-            &signature_length);
-        if (status != PSA_SUCCESS) {
-            printf("Failed to sign\n");
-            ret = -1;
-        }
-        else {
-            printf("Signed a message, key: %s, signature size: %zu\n", path, signature_length);
+        while (signer->schemes[num_algorithms].scheme_id != UINT16_MAX && num_algorithms < 16) {
+            algorithms[num_algorithms++] = signer->schemes[num_algorithms].scheme_id;
         }
 
-        ptls_mbedtls_dispose_sign_certificate(ctx.sign_certificate);
+        ptls_buffer_init(&outbuf, outbuf_smallbuf, sizeof(outbuf_smallbuf));
+
+        ret = ptls_mbedtls_sign_certificate(ctx.sign_certificate, NULL, NULL, &selected_algorithm,
+            &outbuf, input, algorithms, num_algorithms);
+        if (ret == 0) {
+            printf("Signed a message, key: %s, scheme: %x, signature size: %zu\n", path, selected_algorithm, outbuf.off);
+        }
+        else {
+            printf("Sign failed, key: %s, scheme: %x, signature size: %zu\n", path, selected_algorithm, outbuf.off);
+        }
+        ptls_buffer_dispose(&outbuf);
+
+
+        ptls_mbedtls_dispose_sign_certificate(signer);
     }
 
     return ret;
