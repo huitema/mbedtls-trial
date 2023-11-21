@@ -504,9 +504,6 @@ int test_load_one_der_key(char const* path)
         17, 18, 19, 20, 21, 22, 23, 24,
         25, 26, 27, 28, 29, 30, 31, 32
     };
-    unsigned char signature[512];
-    size_t signature_length = 0;
-    unsigned int signature_type = 0;
     ptls_context_t ctx = { 0 };
     psa_status_t status = 0;
 
@@ -520,6 +517,7 @@ int test_load_one_der_key(char const* path)
     }
     else {
         /* Try to sign something */
+        int ret;
         ptls_mbedtls_sign_certificate_t* signer = (ptls_mbedtls_sign_certificate_t*)
             (((unsigned char*)ctx.sign_certificate) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
         /* get the key algorithm */
@@ -546,9 +544,7 @@ int test_load_one_der_key(char const* path)
             printf("Sign failed, key: %s, scheme: %x, signature size: %zu\n", path, selected_algorithm, outbuf.off);
         }
         ptls_buffer_dispose(&outbuf);
-
-
-        ptls_mbedtls_dispose_sign_certificate(signer);
+        ptls_mbedtls_dispose_sign_certificate(&signer->super);
     }
 
     return ret;

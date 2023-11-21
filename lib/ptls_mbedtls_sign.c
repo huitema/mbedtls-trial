@@ -693,7 +693,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
             key_length = pem.private_buflen;
             ptls_mbedtls_set_rsa_key_attributes(signer, pem.private_buf, key_length);
         }
-        else if (pk_type == MBEDTLS_PK_ECKEY) {\
+        else if (pk_type == MBEDTLS_PK_ECKEY) {
             ret = ptls_mbedtls_parse_ecdsa_field(pem.private_buf, pem.private_buflen, &key_index, &key_length);
             if (ret == 0) {
                 ret = ptls_mbedtls_set_ec_key_attributes(signer, key_length);
@@ -755,6 +755,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
         mbedtls_pem_free(&pem);
     }
     if (ret == 0) {
+        signer->super.cb = ptls_mbedtls_sign_certificate;
         ctx->sign_certificate = &signer->super;
     } else {
         /* Dispose of what we have allocated. */
