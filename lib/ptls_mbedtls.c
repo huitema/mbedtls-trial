@@ -875,6 +875,7 @@ int ptls_mbedtls_key_exchange_on_exchange(struct st_ptls_key_exchange_context_t*
         /* Clear the private key */
         psa_destroy_key(keyex->private_key);
         /* Set context to NULL */
+        free(keyex);
         *_pctx = NULL;
         /* TODO: check whether allocated memory should be freed */
     }

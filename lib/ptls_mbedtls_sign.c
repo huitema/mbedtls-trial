@@ -764,3 +764,36 @@ int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
     return ret;
 }
 
+/* Handling of certificates.
+* Certificates in picotls are used both at the client and the server side.
+* 
+* The server is programmed with a copy of the certificate chain linking
+* the local key and identity to a certificate authority. Picotls formats
+* that key and sends it as part of the "server hello". It is signed with
+* the server key.
+* 
+* On the server side, picotls expects?
+* 
+* The client is programmed with a list of root certificates. It should
+* process the list received from the server and verifies that it does
+* correctly link the server certificate to one of the certificates in the
+* root list.
+* 
+* Mbedtls documents a series of certificate related API in `x509_crt.h`.
+* 
+* On the server side, we read the certificates from a PEM encoded
+* file, and provide it to the server.
+* 
+* int mbedtls_x509_crt_parse_der(mbedtls_x509_crt *chain, const unsigned char *buf, size_t buflen)
+*     => parse the DER code in the buffer, documents a cerificate chain
+*        in MbetTLS format.
+* 
+* int mbedtls_x509_crt_parse(mbedtls_x509_crt *chain, const unsigned char *buf, size_t buflen)
+*    => Parse one DER-encoded or one or more concatenated PEM-encoded certificates and
+*       add them to the chained list. 
+* 
+* int mbedtls_x509_crt_verify(mbedtls_x509_crt *crt, mbedtls_x509_crt *trust_ca, mbedtls_x509_crl *ca_crl, const char *cn, uint32_t *flags, int (*f_vrfy)(void*, mbedtls_x509_crt*, int, uint32_t*), void *p_vrfy)
+*    => check the certificate chain (crt) against a list of trusted ca (trust_ca) and
+*       a specified "common name". "ca_crl" is a revocation list.
+* 
+ */
