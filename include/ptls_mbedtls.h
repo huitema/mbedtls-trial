@@ -26,6 +26,7 @@
 extern "C" {
 #endif
 #include "picotls.h"
+#include "psa/crypto.h"
 
 extern ptls_hash_algorithm_t ptls_mbedtls_sha256;
 extern ptls_hash_algorithm_t ptls_mbedtls_sha512;
@@ -43,11 +44,31 @@ extern ptls_aead_algorithm_t ptls_mbedtls_aes128gcm;
 extern ptls_aead_algorithm_t ptls_mbedtls_aes256gcm;
 extern ptls_aead_algorithm_t ptls_mbedtls_chacha20poly1305;
 
+extern ptls_cipher_suite_t ptls_mbedtls_aes128gcmsha256;
+extern ptls_cipher_suite_t ptls_mbedtls_aes256gcmsha384;
+extern ptls_cipher_suite_t ptls_mbedtls_chacha20poly1305sha256;
+
 extern ptls_key_exchange_algorithm_t ptls_mbedtls_secp256r1;
+extern ptls_key_exchange_algorithm_t ptls_mbedtls_x25519;
 
 int ptls_mbedtls_init();
 void ptls_mbedtls_free();
 void ptls_mbedtls_random_bytes(void* buf, size_t len);
+
+typedef struct st_ptls_mbedtls_signature_scheme_t {
+    uint16_t scheme_id;
+    psa_algorithm_t hash_algo;
+} ptls_mbedtls_signature_scheme_t;
+
+typedef struct st_ptls_mbedtls_sign_certificate_t {
+    ptls_sign_certificate_t super;
+    mbedtls_svc_key_id_t key_id;
+    psa_key_attributes_t attributes;
+    const ptls_mbedtls_signature_scheme_t * schemes;
+} ptls_mbedtls_sign_certificate_t;
+
+int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname);
+void ptls_mbedtls_dispose_sign_certificate(ptls_sign_certificate_t* _self);
 
 #ifdef __cplusplus
 }
