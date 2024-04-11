@@ -33,6 +33,7 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/pem.h"
 #include "mbedtls/error.h"
+#include "mbedtls/x509_crt.h"
 #include "psa/crypto.h"
 #include "psa/crypto_struct.h"
 #include "psa/crypto_values.h"
@@ -443,7 +444,6 @@ int ptls_mbedtls_set_available_schemes(
         signer->schemes = ed25519_signature_schemes;
         break;
     default:
-        printf("Unknown algo: %x\n", algo);
         ret = -1;
     }
 
@@ -653,6 +653,7 @@ int ptls_mbedtls_set_ec_key_attributes(ptls_mbedtls_sign_certificate_t* signer, 
 }
 
 
+
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
@@ -796,4 +797,339 @@ int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
 *    => check the certificate chain (crt) against a list of trusted ca (trust_ca) and
 *       a specified "common name". "ca_crl" is a revocation list.
 * 
+* Public key operations such as "verify message" require a key-id.  We should obtain that key ID by using "psa_import_key":
+* 
+* psa_status_t psa_import_key(const psa_key_attributes_t *attributes, const uint8_t *data, size_t data_length, mbedtls_svc_key_id_t *key)
+* 
+* The data and data length are probably obtained 
  */
+
+ /* Read certificates from a file using MbedTLS functions.
+ * We only use the PEM function to parse PEM files, find
+ * up to 16 certificates, and convert the base64 encoded
+ * data to DER encoded binary. No attempt is made to verify
+ * that these actually are certificates.
+ */
+ptls_iovec_t* picoquic_mbedtls_get_certs_from_file(char const * pem_fname, size_t * count)
+{
+    ptls_iovec_t* vec = (ptls_iovec_t*)malloc(sizeof(ptls_iovec_t) * 16);
+
+    *count = 0;
+    if (vec != NULL) {
+        size_t buf_length;
+        unsigned char* buf = NULL;
+        /* The load file function simply loads the file content in memory */
+        if (mbedtls_pk_load_file(pem_fname, &buf, &buf_length) == 0) {
+            int ret = 0;
+            size_t length_already_read = 0;
+
+            while (ret == 0 && *count < 16 && length_already_read < (size_t)buf_length) {
+                mbedtls_pem_context pem = { 0 };
+                size_t length_read = 0;
+
+                /* PEM context setup. */
+                mbedtls_pem_init(&pem);
+                /* Read a buffer for PEM information and store the resulting data into the specified context buffers. */
+                ret = mbedtls_pem_read_buffer(&pem,
+                    "-----BEGIN CERTIFICATE-----",
+                    "-----END CERTIFICATE-----",
+                    buf + length_already_read, NULL, 0, &length_read);
+                if (ret == 0) {
+                    /* Certificate was read successfully. PEM buffer contains the base64 value */
+                    uint8_t* cert = (uint8_t*)malloc(pem.private_buflen);
+                    if (cert == NULL) {
+                        ret = PTLS_ERROR_NO_MEMORY;
+                    }
+                    else {
+                        vec[*count].base = cert;
+                        vec[*count].len = pem.private_buflen;
+                        *count += 1;
+                    }
+                }
+                mbedtls_pem_free(&pem);
+                length_already_read += length_read;
+            }
+
+            free(buf);
+        }
+    }
+    return vec;
+}
+
+/* verify certificate.
+* Picotls and then picoquic use a two phase API:
+* 
+* - During initialization, prepare a "verify certificate callback"
+* - During the handshake, picotls executes the callback.
+* 
+* The setup call for the "stack" verifier is:
+* 
+* picoquic_openssl_get_openssl_certificate_verifier(char const * cert_root_file_name,
+*   unsigned int * is_cert_store_not_empty)
+*
+* For openssl, this creates a structure:
+* 
+* typedef struct st_ptls_openssl_verify_certificate_t {
+*    ptls_verify_certificate_t super;
+*    X509_STORE *cert_store;
+*    ptls_openssl_override_verify_certificate_t *override_callback;
+* } ptls_openssl_verify_certificate_t;
+*
+* 
+ */
+
+/* The "verify sign" callback is called to verify the final handshake message
+* of the server, using the public key present in the server certificate. 
+* The "verify_ctx" is set during the "verify_cert" callback, i.e., the public
+* key. 
+* 
+* The MBEDTLS call is:
+* psa_status_t psa_verify_message(mbedtls_svc_key_id_t key, psa_algorithm_t alg, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length)
+* in which:
+* * key is passed by "ID"
+* * alg is the signature algorithm,
+* * input, input_length is the data,
+* * signature, signature length is the reported signature.
+* 
+* This means that "verify_ctx" should pass the value of type mbedtls_svc_key_id_t.
+*/
+
+
+static int mbedptls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t data, ptls_iovec_t signature)
+{
+    /* Obtain the key parameters, etc. */
+#if 0
+    EVP_PKEY *key = verify_ctx;
+    const ptls_openssl_signature_scheme_t *scheme;
+    EVP_MD_CTX *ctx = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+#endif
+    int ret = 0;
+   ptls_mbedtls_signature_scheme_t* schemes;
+    if (data.base == NULL)
+        goto Exit;
+
+    /* Find whether the signature scheme is supported */
+    ptls_mbedtls_set_schemes_from_key_params(/*psa_algorithm_t*/ key_algo, key_nb_bits, &schemes);
+
+    for (; scheme->scheme_id != UINT16_MAX; ++scheme)
+        if (scheme->scheme_id == algo)
+            goto SchemeFound;
+    ret = PTLS_ALERT_ILLEGAL_PARAMETER;
+    goto Exit;
+
+SchemeFound:
+    if ((ctx = EVP_MD_CTX_create()) == NULL) {
+        ret = PTLS_ERROR_NO_MEMORY;
+        goto Exit;
+    }
+
+    /* Do the verification, using appropriate scheme
+    * OpenSSl uses 3/4 steps:
+    * - verify init: setting context, scheme, key.
+    * - something about RSA
+    * - verify update, passing the content
+    * - verify final, comparing the signature.
+    * Should this be abstracted for individual testing?
+     */
+    {
+        if (EVP_DigestVerifyInit(ctx, &pkey_ctx, scheme->scheme_md(), NULL, key) != 1) {
+            ret = PTLS_ERROR_LIBRARY;
+            goto Exit;
+        }
+
+        if (EVP_PKEY_id(key) == EVP_PKEY_RSA) {
+            if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) != 1) {
+                ret = PTLS_ERROR_LIBRARY;
+                goto Exit;
+            }
+            if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -1) != 1) {
+                ret = PTLS_ERROR_LIBRARY;
+                goto Exit;
+            }
+            if (EVP_PKEY_CTX_set_rsa_mgf1_md(pkey_ctx, scheme->scheme_md()) != 1) {
+                ret = PTLS_ERROR_LIBRARY;
+                goto Exit;
+            }
+        }
+        if (EVP_DigestVerifyUpdate(ctx, data.base, data.len) != 1) {
+            ret = PTLS_ERROR_LIBRARY;
+            goto Exit;
+        }
+        if (EVP_DigestVerifyFinal(ctx, signature.base, signature.len) != 1) {
+            ret = PTLS_ALERT_DECRYPT_ERROR;
+            goto Exit;
+        }
+    }
+
+    ret = 0;
+
+    /* Finally, free the context and the verify_ctx data */
+Exit:
+    if (ctx != NULL)
+        EVP_MD_CTX_destroy(ctx);
+    EVP_PKEY_free(key);
+    return ret;
+}
+
+
+/* The verify cert call back in openssl.c calls the SSL APIs:
+* - convert the "certs" list obtained from TLS message into a structure
+*   acceptable by OpenSSL,
+* - call "verify_cert_chain(self->cert_store, cert, chain, ptls_is_server(tls), server_name, &ossl_x509_err)"
+* - if there is an "override" callback defined, call that. even if there
+*   are no certificates specified.
+* - if all is good and there is a cert provided, retrieve the public key from the cert
+*   and put that in the "verify_data" parameter
+* - set the "verifier" function pointer to "verify_sig"
+* 
+*/
+
+static int mbedtls_verify_cert(ptls_verify_certificate_t *_self, ptls_t *tls, const char *server_name,
+    int (**verifier)(void *, uint16_t, ptls_iovec_t, ptls_iovec_t), void **verify_data, ptls_iovec_t *certs,
+    size_t num_certs)
+{
+    size_t i;
+    int ret = 0;
+    ptls_mbedtls_verify_certificate_t *self = (ptls_mbedtls_verify_certificate_t *)_self;
+    mbedtls_x509_crt chain_head = { 0 };
+    //X509 *cert = NULL;
+    //STACK_OF(X509) *chain = sk_X509_new_null();
+
+    /* If any certs are given, convert them to OpenSSL representation, then verify the cert chain. If no certs are given, just give
+    * the override_callback to see if we want to stay fail open. */
+    if (num_certs != 0) {
+        mbedtls_x509_crt* previous_chain = &chain_head;
+        uint32_t flags = 0;
+#if 0
+        if ((cert = to_x509(certs[0])) == NULL) {
+            ret = PTLS_ALERT_BAD_CERTIFICATE;
+            goto Exit;
+        }
+#endif
+        for (i = 0; i != num_certs; ++i) {
+            ret = mbedtls_x509_crt_parse(previous_chain, certs[i].base, certs[i].len);
+            if (previous_chain->next == NULL) {
+                ret = PTLS_ALERT_BAD_CERTIFICATE;
+                break;
+            }
+            previous_chain = previous_chain->next;
+        }
+
+        if (ret == 0) {
+            ret = mbedtls_x509_crt_verify(chain_head.next, self->trust_ca, NULL /* ca_crl */, server_name, &flags,
+                self->f_vrfy, self->p_vrfy);
+        }
+    } else {
+        ret = PTLS_ALERT_CERTIFICATE_REQUIRED;
+    }
+
+    if (ret == 0 && num_certs > 0) {
+        /* extract public key for verifying the TLS handshake signature.
+         * we need to allocate a buffer to hold the key. The size of the buffer
+         * is not obvious. What is the maximum size that we support?
+         * Maybe RSA with 8K bits, i.e., 1KB -- but the format includes
+         * the modulo N (1KB) and the public exponent (shorter). 2KB should
+         * be enough. Otherwise, we have an error case.
+         * 
+         * the exported public key should then be fed to:
+         * psa_status_t psa_import_key(const psa_key_attributes_t *attributes, const uint8_t *data, size_t data_length, mbedtls_svc_key_id_t *key)
+         * 
+         * The difficulty is to find the proper key attributes:
+         * signer->attributes = psa_key_attributes_init();
+         * PSA_KEY_USAGE_VERIFY_HASH -- because this is a public key?
+         * Algorithm dependent flags, similar to what is done for private key.
+         * 
+         */
+        uint8_t buffer[2048];
+        psa_key_attributes_t attributes = psa_key_attributes_init();
+        int length_written = mbedtls_pk_write_pubkey_der(&chain_head.next->pk, buffer, sizeof(buffer));
+        if (length_written <= 0 || length_written > sizeof(buffer) ) {
+            ret = PTLS_ALERT_BAD_CERTIFICATE;
+        }
+        else {
+            mbedtls_svc_key_id_t key;
+            size_t start_byte = sizeof(buffer) - length_written;
+            psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_VERIFY_MESSAGE | PSA_KEY_USAGE_VERIFY_HASH);
+            /* TODO: add attributes like key type. Maybe parse the ASN1 to find the values. */
+            /* TODO, tests: using private key, examine the ASN1 */
+            /* TODO: verify that the key format is correct. */
+            if (psa_import_key(&attributes, buffer + start_byte, length_written, &key) != 0) {
+                ret = PTLS_ALERT_BAD_CERTIFICATE;
+            }
+            else {
+                /* TODO: create a verifier blob, set verify data, etc. */
+            }
+        }
+    }
+
+Exit:
+    if (chain_head.next != NULL) {
+        mbedtls_x509_crt_free(chain_head.next);
+    }
+    return ret;
+}
+
+/* The init in open ssl does : */
+
+int ptls_mbedssl_init_verify_certificate(ptls_mbedtls_verify_certificate_t *self, mbedtls_x509_crt *trust_ca)
+{
+    /* The init between the {{}, ..} fills the "ptls_verify_certificate_t" member. */
+    *self = (ptls_mbedtls_verify_certificate_t){{mbedtls_verify_cert, default_signature_schemes}, NULL};
+
+    /* The "cert store will be set to an OpenSSL default if not specified. */
+    if (store != NULL) {
+        self->trust_ca = trust_ca;
+    } else {
+        /* No default store available in MbedTLS */
+        return -1;
+    }
+
+    return 0;
+}
+
+/* Use openssl functions to create a certficate verifier */
+ptls_mbedtls_verify_certificate_t* picoquic_mbdedtls_get_openssl_certificate_verifier(char const * cert_root_file_name,
+    unsigned int * is_cert_store_not_empty)
+{
+    ptls_mbdedtls_verify_certificate_t * verifier = (ptls_mbdedtls_verify_certificate_t*)malloc(sizeof(ptls_mbdedtls_verify_certificate_t));
+    if (verifier != NULL) {
+        X509_STORE* store = X509_STORE_new();
+
+        if (cert_root_file_name != NULL && store != NULL) {
+            int file_ret = 0;
+            X509_LOOKUP* lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
+            if ((file_ret = X509_LOOKUP_load_file(lookup, cert_root_file_name, X509_FILETYPE_PEM)) == 1) {
+                *is_cert_store_not_empty = 1;
+            }
+        }
+#ifdef PTLS_OPENSSL_VERIFY_CERTIFICATE_ENABLE_OVERRIDE
+        ptls_mbdedtls_init_verify_certificate(verifier, store, NULL);
+#else
+        ptls_mbdedtls_init_verify_certificate(verifier, store);
+#endif
+
+        // If we created an instance of the store, release our reference after giving it to the verify_certificate callback.
+        // The callback internally increased the reference counter by one.
+#if OPENSSL_VERSION_NUMBER > 0x10100000L
+        if (store != NULL) {
+            X509_STORE_free(store);
+        }
+#endif
+    }
+    return verifier;
+}
+
+
+
+ptls_verify_certificate_t* picoquic_openssl_get_certificate_verifier(char const* cert_root_file_name,
+    unsigned int* is_cert_store_not_empty)
+{
+    ptls_openssl_verify_certificate_t* verifier = picoquic_openssl_get_openssl_certificate_verifier(cert_root_file_name,
+        is_cert_store_not_empty);
+    return (verifier == NULL) ? NULL : (ptls_verify_certificate_t*)&verifier->super;
+}
+
+void picoquic_openssl_dispose_certificate_verifier(ptls_verify_certificate_t* verifier) {
+    ptls_openssl_dispose_verify_certificate((ptls_openssl_verify_certificate_t*)verifier);
+}
