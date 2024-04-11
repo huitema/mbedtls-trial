@@ -70,6 +70,8 @@ typedef struct st_ptls_mbedtls_sign_certificate_t {
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname);
 void ptls_mbedtls_dispose_sign_certificate(ptls_sign_certificate_t* _self);
 
+#ifdef TESTING_VERIFY
+
 ptls_iovec_t* picoquic_mbedtls_get_certs_from_file(char const* file_name, size_t* count);
 
 
@@ -83,7 +85,7 @@ typedef struct st_ptls_mbedtls_certificate_t {
 int ptls_mbedssl_init_verify_certificate(ptls_mbedtls_verify_certificate_t* self, mbedtls_x509_crt *trust_ca);
 
 
-
+#endif TESTING_VERIFY
 
 #ifdef __cplusplus
 }

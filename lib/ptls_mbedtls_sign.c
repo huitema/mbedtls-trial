@@ -652,8 +652,6 @@ int ptls_mbedtls_set_ec_key_attributes(ptls_mbedtls_sign_certificate_t* signer, 
     return ret;
 }
 
-
-
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
@@ -764,6 +762,8 @@ int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname)
     }
     return ret;
 }
+
+#ifdef TESTING_VERIFY
 
 /* Handling of certificates.
 * Certificates in picotls are used both at the client and the server side.
@@ -1133,3 +1133,5 @@ ptls_verify_certificate_t* picoquic_openssl_get_certificate_verifier(char const*
 void picoquic_openssl_dispose_certificate_verifier(ptls_verify_certificate_t* verifier) {
     ptls_openssl_dispose_verify_certificate((ptls_openssl_verify_certificate_t*)verifier);
 }
+
+#endif /* TESTING VERIFY */
