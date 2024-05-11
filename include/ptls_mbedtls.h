@@ -27,6 +27,7 @@ extern "C" {
 #endif
 #include "picotls.h"
 #include "psa/crypto.h"
+#include "mbedtls/x509_crt.h"
 
 extern ptls_hash_algorithm_t ptls_mbedtls_sha256;
 extern ptls_hash_algorithm_t ptls_mbedtls_sha512;
@@ -70,22 +71,19 @@ typedef struct st_ptls_mbedtls_sign_certificate_t {
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname);
 void ptls_mbedtls_dispose_sign_certificate(ptls_sign_certificate_t* _self);
 
-#ifdef TESTING_VERIFY
-
-ptls_iovec_t* picoquic_mbedtls_get_certs_from_file(char const* file_name, size_t* count);
-
+int picoquic_mbedtls_get_certs_from_file(char const* pem_fname, ptls_iovec_t* vec, size_t* count);
 
 typedef struct st_ptls_mbedtls_certificate_t {
     ptls_verify_certificate_t super;
     mbedtls_x509_crt *trust_ca;
+    mbedtls_x509_crl *trust_crl;
     int (*f_vrfy)(void*, mbedtls_x509_crt*, int, uint32_t*);
     void* p_vrfy;
 } ptls_mbedtls_verify_certificate_t;
 
-int ptls_mbedssl_init_verify_certificate(ptls_mbedtls_verify_certificate_t* self, mbedtls_x509_crt *trust_ca);
+int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* pem_fname);
 
-
-#endif TESTING_VERIFY
+int ptls_mbedtls_load_file(char const* file_name, unsigned char** buf, size_t* n);
 
 #ifdef __cplusplus
 }
