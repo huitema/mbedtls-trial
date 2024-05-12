@@ -138,7 +138,7 @@ set_ptls_mbedtls_compile_settings(ptls_mbedtls-core)
 add_executable(ptls_mbedtls_trial
     src/mbedtls_trial.c)
 target_link_libraries(ptls_mbedtls_trial
-    PRIVATE
+    PUBLIC
         ptls_mbedtls-core
         ${PTLS_LIBRARIES}
         ${MBEDTLS_LIBRARIES})
