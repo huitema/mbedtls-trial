@@ -329,7 +329,7 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
                 psa_status_t status;
                 psa_key_attributes_t attributes;
                 memset(&attributes, 0, sizeof(attributes));
-                memset(message_verify_ctx, 0, sizeof(message_verify_ctx));
+                memset(message_verify_ctx, 0, sizeof(mbedtls_message_verify_ctx_t));
 
                 status = mbedtls_pk_get_psa_attributes(&chain_head.next->pk, PSA_KEY_USAGE_VERIFY_MESSAGE, &attributes);
                 if (status == PSA_SUCCESS) {
@@ -338,6 +338,10 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
                 if (status != PSA_SUCCESS) {
                     ret = PTLS_ERROR_LIBRARY;
                     free(message_verify_ctx);
+                }
+                else {
+                    *verifier = mbedtls_verify_sign;
+                    *verify_data = message_verify_ctx;
                 }
             }
         }
@@ -442,7 +446,6 @@ int ptls_mbedssl_init_verify_certificate_complete(ptls_context_t * ptls_ctx,
 int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* pem_fname)
 {
     int ret = 0;
-    size_t count = 0;
     mbedtls_x509_crt chain_head = { 0 };
 
     int psa_ret = mbedtls_x509_crt_parse_file(&chain_head, pem_fname);

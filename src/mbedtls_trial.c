@@ -530,7 +530,8 @@ int test_load_one_der_key(char const* path)
         uint16_t algorithms[16];
         memcpy(hash, h0, 32);
         while (signer->schemes[num_algorithms].scheme_id != UINT16_MAX && num_algorithms < 16) {
-            algorithms[num_algorithms++] = signer->schemes[num_algorithms].scheme_id;
+            algorithms[num_algorithms] = signer->schemes[num_algorithms].scheme_id;
+            num_algorithms++;
         }
 
         ptls_buffer_init(&outbuf, outbuf_smallbuf, sizeof(outbuf_smallbuf));
