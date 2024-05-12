@@ -42,21 +42,24 @@ jobs:
              cd ../../mbedtls-trial
              pwd
              ls
+      - name: Building picotls
+        run: |
+             sudo apt-get install clangd
+             sudo apt-get install -y libssl-dev
+             echo $CC
+             echo $CXX
+             # $CC --version
+             chmod +x ./ci/build_picotls.sh
+             ./ci/build_picotls.sh
 
       - name: Building mbedtls-trial
         run: |
-          sudo apt-get install clangd
-          sudo apt-get install -y libssl-dev
-          echo $CC
-          echo $CXX
-          # $CC --version
-          ./ci/build_picotls.sh
-          cmake .
-          make
+             cmake .
+             make
 
       - name: Perform Unit Tests
         run: |
-            ulimit -c unlimited -S
-            ./mbedtls-trial && RESULT=$?
-            if [[ ${RESULT} == 0 ]]; then exit 0; fi;
-            exit 1
+             ulimit -c unlimited -S
+             ./mbedtls-trial && RESULT=$?
+             if [[ ${RESULT} == 0 ]]; then exit 0; fi;
+             exit 1
