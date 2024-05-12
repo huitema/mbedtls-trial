@@ -65,7 +65,7 @@ set(PTLS_MBEDTLS_LIBRARY_FILES
     )
 
 set(PTLS_MBEDTLS_CORE_HEADERS
-     lib/ptls_mbedtls.h)
+     include/ptls_mbedtls.h)
 
 OPTION(PTLS_MBEDTLS_FETCH_PTLS "Fetch PicoTLS during configuration" OFF)
 if(PTLS_MBEDTLS_FETCH_PTLS)
