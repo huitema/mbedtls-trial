@@ -25,6 +25,7 @@ jobs:
 
       - name: Installing MbedTLS
         run: |
+             sudo apt-get install python
              pwd
              cd ..
              git clone https://github.com/Mbed-TLS/mbedtls
@@ -32,6 +33,7 @@ jobs:
              echo "cloned mbedtls"
              git submodule init
              git submodule update
+             python scripts/config.py full
              mkdir build
              cd build
              cmake -S .. -DMBEDTLS_USE_PSA_CRYPTO -DMBEDTLS_PEM_PARSE_C .
