@@ -139,9 +139,9 @@ add_executable(ptls_mbedtls_trial
     src/mbedtls_trial.c)
 target_link_libraries(ptls_mbedtls_trial
     PRIVATE
+        ptls_mbedtls-core
         ${PTLS_LIBRARIES}
-        ${MBEDTLS_LIBRARIES}
-        ptls_mbedtls-core)
+        ${MBEDTLS_LIBRARIES})
 target_include_directories(ptls_mbedtls_trial 
      PRIVATE
         ${PTLS_INCLUDE_DIRS}
