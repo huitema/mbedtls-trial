@@ -34,7 +34,7 @@ jobs:
              git submodule update
              mkdir build
              cd build
-             cmake -S .. .
+             cmake -S .. -DMBEDTLS_USE_PSA_CRYPTO -DMBEDTLS_PEM_PARSE_C .
              echo "cmake done"
              make
              echo "compiled MbedTLS"

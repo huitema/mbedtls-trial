@@ -505,7 +505,6 @@ int test_load_one_der_key(char const* path)
         25, 26, 27, 28, 29, 30, 31, 32
     };
     ptls_context_t ctx = { 0 };
-    psa_status_t status = 0;
 
     ret = ptls_mbedtls_load_private_key(&ctx, path);
     if (ret != 0) {
@@ -520,8 +519,6 @@ int test_load_one_der_key(char const* path)
         int ret;
         ptls_mbedtls_sign_certificate_t* signer = (ptls_mbedtls_sign_certificate_t*)
             (((unsigned char*)ctx.sign_certificate) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
-        /* get the key algorithm */
-        psa_algorithm_t algo = psa_get_key_algorithm(&signer->attributes);
         ptls_buffer_t outbuf;
         uint8_t outbuf_smallbuf[256];
         ptls_iovec_t input = { hash, sizeof(hash) };
