@@ -664,7 +664,9 @@ int ptls_mbedtls_load_file(char const * file_name, unsigned char ** buf, size_t 
 #endif
 
 
-    if (F != NULL) {
+    if (F == NULL) {
+        ret = PTLS_ERROR_NOT_AVAILABLE;
+    } else {
         long sz;
         fseek(F, 0, SEEK_END);
         sz = ftell(F);
@@ -718,11 +720,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
     signer->attributes = psa_key_attributes_init();
 
     if ((ret = ptls_mbedtls_load_file(pem_fname, &buf, &n)) != 0) {
-        if (ret == MBEDTLS_ERR_PK_ALLOC_FAILED) {
-            return (PTLS_ERROR_NO_MEMORY);
-        } else {
-            return (PTLS_ERROR_NOT_AVAILABLE);
-        }
+        return ret;
     }
     ret = ptls_mbedtls_get_der_key(&pem, &pk_type, buf, n, NULL, 0, NULL, NULL);
 
