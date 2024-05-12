@@ -70,8 +70,11 @@ typedef struct st_ptls_mbedtls_sign_certificate_t {
 
 int ptls_mbedtls_load_private_key(ptls_context_t* ctx, char const* pem_fname);
 void ptls_mbedtls_dispose_sign_certificate(ptls_sign_certificate_t* _self);
+int ptls_mbedtls_sign_certificate(ptls_sign_certificate_t* _self, ptls_t* tls, ptls_async_job_t** async,
+    uint16_t* selected_algorithm, ptls_buffer_t* outbuf, ptls_iovec_t input,
+    const uint16_t* algorithms, size_t num_algorithms);
 
-int picoquic_mbedtls_get_certs_from_file(char const* pem_fname, ptls_iovec_t* vec, size_t* count);
+int picoquic_mbedtls_get_certs_from_file(char const* pem_fname, ptls_iovec_t** vec, size_t* count);
 
 typedef struct st_ptls_mbedtls_certificate_t {
     ptls_verify_certificate_t super;

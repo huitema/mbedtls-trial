@@ -677,11 +677,12 @@ int ptls_mbedtls_load_file(char const * file_name, unsigned char ** buf, size_t 
             else {
                 size_t nb_read = 0;
                 fseek(F, 0, SEEK_SET);
-                while(nb_read < sz){
+                while(nb_read < (size_t)sz){
                     *n = sz;
-                    size_t ret = fread(*buf + nb_read, sz - nb_read, 1, F);
+                    size_t ret = fread((*buf) + nb_read, 1, sz - nb_read, F);
                     if (ret > 0){
                         nb_read += ret;
+                        (*buf)[nb_read] = 0;
                     } else {
                         /* No need to check for EOF, since we know the length of the file */
                         ret = PTLS_ERROR_NOT_AVAILABLE;

@@ -355,13 +355,13 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
 * data to DER encoded binary. No attempt is made to verify
 * that these actually are certificates.
 */
-int picoquic_mbedtls_get_certs_from_file(char const * pem_fname, ptls_iovec_t* vec, size_t * count)
+int picoquic_mbedtls_get_certs_from_file(char const * pem_fname, ptls_iovec_t** pvec, size_t * count)
 {
     int ret = 0;
-    vec = (ptls_iovec_t*)malloc(sizeof(ptls_iovec_t) * 16);
+    *pvec = (ptls_iovec_t*)malloc(sizeof(ptls_iovec_t) * 16);
 
     *count = 0;
-    if (vec == NULL) {
+    if (*pvec == NULL) {
         ret = PTLS_ERROR_NO_MEMORY;
     } else {
         size_t buf_length;
@@ -388,8 +388,8 @@ int picoquic_mbedtls_get_certs_from_file(char const * pem_fname, ptls_iovec_t* v
                         ret = PTLS_ERROR_NO_MEMORY;
                     }
                     else {
-                        vec[*count].base = cert;
-                        vec[*count].len = pem.private_buflen;
+                        (*pvec)[*count].base = cert;
+                        (*pvec)[*count].len = pem.private_buflen;
                         *count += 1;
                     }
                 }
@@ -445,7 +445,7 @@ int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* p
     size_t count = 0;
     mbedtls_x509_crt chain_head = { 0 };
 
-    int psa_ret = mbedtls_x509_crt_parse_file(&chain_head.next, pem_fname);
+    int psa_ret = mbedtls_x509_crt_parse_file(&chain_head, pem_fname);
     if (psa_ret == 0) {
         ret = ptls_mbedssl_init_verify_certificate_complete(ptls_ctx,
             chain_head.next, NULL, NULL, NULL);
