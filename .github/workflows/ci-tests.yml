@@ -60,6 +60,6 @@ jobs:
       - name: Perform Unit Tests
         run: |
              ulimit -c unlimited -S
-             ./mbedtls-trial && RESULT=$?
+             ./ptls_mbedtls_trial && RESULT=$?
              if [[ ${RESULT} == 0 ]]; then exit 0; fi;
              exit 1
