@@ -43,6 +43,11 @@ int main(int argc, char ** argv)
         &ptls_minicrypto_chacha20
     };
     int ret = 0;
+#ifdef _WINDOWS
+    printf("testing on WIndows.\n");
+#else
+    printf("Testing on Unix.\n");
+#endif
 
     /* Initialize the PSA crypto library. */
     if ((ret = ptls_mbedtls_init()) != 0) {
@@ -506,7 +511,7 @@ be expressed in the proper x509/DER format.
 #define ASSET_RSA_PKCS8_KEY "data/rsa-pkcs8/key.pem"
 #define ASSET_SECP256R1_KEY "data/secp256r1/key.pem"
 #define ASSET_SECP384R1_KEY "data/secp384r1/key.pem"
-#define ASSET_SECP521R1_KEY "data\\secp521r1\\key.pem"
+#define ASSET_SECP521R1_KEY "data/secp521r1/key.pem"
 #define ASSET_SECP256R1_PKCS8_KEY "data/secp256r1-pkcs8/key.pem"
 #define ASSET_ED25519_KEY "data/ed25519/key.pem"
 #endif
