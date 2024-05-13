@@ -484,7 +484,7 @@ But before using the psa API, the key must be imported. That means the key has t
 be expressed in the proper x509/DER format.
 
 */
-
+#ifdef _WINDOWS
 #define ASSET_DIR ..\\..\\data
 #define ASSET_RSA_KEY "..\\..\\data\\rsa\\key.pem"
 #define ASSET_RSA_PKCS8_KEY "..\\..\\data\\rsa-pkcs8\\key.pem"
@@ -493,6 +493,16 @@ be expressed in the proper x509/DER format.
 #define ASSET_SECP521R1_KEY "..\\..\\data\\secp521r1\\key.pem"
 #define ASSET_SECP256R1_PKCS8_KEY "..\\..\\data\\secp256r1-pkcs8\\key.pem"
 #define ASSET_ED25519_KEY "..\\..\\data\\ed25519\\key.pem"
+#else
+#define ASSET_DIR data
+#define ASSET_RSA_KEY "data/rsa/key.pem"
+#define ASSET_RSA_PKCS8_KEY "data/rsa-pkcs8/key.pem"
+#define ASSET_SECP256R1_KEY "data/secp256r1/key.pem"
+#define ASSET_SECP384R1_KEY "data/secp384r1/key.pem"
+#define ASSET_SECP521R1_KEY "data\\secp521r1\\key.pem"
+#define ASSET_SECP256R1_PKCS8_KEY "data/secp256r1-pkcs8/key.pem"
+#define ASSET_ED25519_KEY "data/ed25519/key.pem"
+#endif
 
 int test_load_one_der_key(char const* path)
 {
