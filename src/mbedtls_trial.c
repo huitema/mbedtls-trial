@@ -24,6 +24,7 @@ int test_cipher(ptls_cipher_algorithm_t* cipher, ptls_cipher_algorithm_t* cipher
 int test_aead(ptls_aead_algorithm_t* algo, ptls_hash_algorithm_t* hash, ptls_aead_algorithm_t* ref, ptls_hash_algorithm_t* hash_ref);
 int test_key_exchange(ptls_key_exchange_algorithm_t* client, ptls_key_exchange_algorithm_t* server);
 int test_load_der();
+int test_load_file();
 
 int main(int argc, char ** argv)
 {
@@ -101,7 +102,13 @@ int main(int argc, char ** argv)
         }
 
         if (ret == 0) {
+            ret = test_load_file();
+            printf("test load file returns: %d\n", ret);
+        }
+
+        if (ret == 0) {
             ret = test_load_der();
+            printf("test load der returns: %d\n", ret);
         }
 
         /* Deinitialize the PSA crypto library. */
@@ -504,6 +511,28 @@ be expressed in the proper x509/DER format.
 #define ASSET_ED25519_KEY "data/ed25519/key.pem"
 #endif
 
+int test_load_one_file(char const* path)
+{
+    size_t n;
+    unsigned char *buf;
+    int ret = ptls_mbedtls_load_file(path, &buf, &n);
+    if (ret != 0) {
+        printf("Cannot load file from: %s, ret = %d (0x%x, -0x%x)\n", path, ret, ret, (int16_t)-ret);
+    }
+    else if (n == 0) {
+        printf("File %s is empty\n", path);
+        ret = -1;
+    }
+    else if (buf[n] != 0) {
+        printf("Buffer from %s is not null terminated\n", path);
+        ret = -1;
+    }
+    if (buf != NULL) {
+        free(buf);
+    }
+    return ret;
+}
+
 int test_load_one_der_key(char const* path)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
@@ -592,5 +621,34 @@ int test_load_der()
     }
 #endif
 
+    return ret;
+}
+
+int test_load_file()
+{
+    int ret = 0;
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_RSA_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_SECP256R1_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_SECP384R1_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_SECP521R1_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_SECP256R1_PKCS8_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_file(ASSET_RSA_PKCS8_KEY);
+    }
     return ret;
 }
