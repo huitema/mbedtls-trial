@@ -518,7 +518,7 @@ int test_load_one_der_key(char const* path)
 
     ret = ptls_mbedtls_load_private_key(&ctx, path);
     if (ret != 0) {
-        printf("Cannot create sign_certificate from: %s, ret = %d (%x)\n", path, ret, ret);
+        printf("Cannot create sign_certificate from: %s, ret = %d (0x%x, -0x%x)\n", path, ret, ret, ret);
     }
     else if (ctx.sign_certificate == NULL) {
         printf("Sign_certificate not set in ptls context for: %s\n", path);
