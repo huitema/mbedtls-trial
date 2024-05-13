@@ -192,7 +192,7 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
     } else if (data.base != NULL) {
         /* Picotls will call verify_sign with data.base == NULL when it
          * only wants to clear the memory. This is not an error condition. */
-         /* Find whether the signature scheme is supported */
+         /* Find the PSA_ALG for the signature scheme is supported */
         switch (algo) {
         case 0x0201: /* PTLS_SIGNATURE_RSA_PKCS1_SHA1 */
             alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1);
@@ -217,17 +217,23 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
             alg = PSA_ALG_ECDSA(PSA_ALG_SHA_384);
             break;
         case 0x0601: /* rsa_pkcs1_sha512  */
+            alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_512);
             break;
         case 0x0603: /* PTLS_SIGNATURE_ECDSA_SECP521R1_SHA512 */
             alg = PSA_ALG_ECDSA(PSA_ALG_SHA_512);
             break;
         case 0x0804: /* PTLS_SIGNATURE_RSA_PSS_RSAE_SHA256 */
+            alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_256);
             break;
         case 0x0805: /* PTLS_SIGNATURE_RSA_PSS_RSAE_SHA384 */
+            alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_384);
             break;
         case 0x0806: /* PTLS_SIGNATURE_RSA_PSS_RSAE_SHA512 */
+            alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_512);
             break;
         case 0x0807: /* PTLS_SIGNATURE_ED25519 */
+            break;
+        case 0x0808: /* PTLS_SIGNATURE_ED448 */
             break;
         default:
             break;

@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
 
     /* Initialize the PSA crypto library. */
     if ((ret = ptls_mbedtls_init()) != 0) {
-        fprintf(stdout, "psa_crypto_init fails.");
+        fprintf(stdout, "psa_crypto_init fails.\n");
     }
     else {
         ret = test_random();
