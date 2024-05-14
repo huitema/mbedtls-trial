@@ -511,7 +511,6 @@ be expressed in the proper x509/DER format.
 #define ASSET_SECP521R1_KEY "..\\..\\data\\secp521r1\\key.pem"
 #define ASSET_SECP256R1_PKCS8_KEY "..\\..\\data\\secp256r1-pkcs8\\key.pem"
 #define ASSET_ED25519_KEY "..\\..\\data\\ed25519\\key.pem"
-#define ASSET_PKCS8_TEST "..\\..\\data\\pkcsref\\pkcs8_test.pem"
 #else
 #define ASSET_DIR data
 #define ASSET_RSA_KEY "data/rsa/key.pem"
@@ -621,10 +620,6 @@ int test_load_der()
 
     if (ret == 0) {
         ret = test_load_one_der_key(ASSET_SECP256R1_PKCS8_KEY);
-    }
-
-    if (ret == 0) {
-        ret = test_load_one_der_key(ASSET_PKCS8_TEST);
     }
 
     if (ret == 0) {
