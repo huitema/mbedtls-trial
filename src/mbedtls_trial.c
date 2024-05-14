@@ -113,7 +113,13 @@ int main(int argc, char ** argv)
 
         if (ret == 0) {
             ret = test_load_der();
-            printf("test load der returns: %d\n", ret);
+            printf("test load der returns:0x%x\n", ret);
+            if (ret < 0 && ret != -1) {
+                char buf[256];
+                buf[0] = 0;
+                mbedtls_strerror(ret, buf, sizeof(buf));
+                printf("MbedTLS error -0x%x, %s\n", ret, buf);
+            }
         }
 
         /* Deinitialize the PSA crypto library. */
@@ -505,6 +511,7 @@ be expressed in the proper x509/DER format.
 #define ASSET_SECP521R1_KEY "..\\..\\data\\secp521r1\\key.pem"
 #define ASSET_SECP256R1_PKCS8_KEY "..\\..\\data\\secp256r1-pkcs8\\key.pem"
 #define ASSET_ED25519_KEY "..\\..\\data\\ed25519\\key.pem"
+#define ASSET_PKCS8_TEST "..\\..\\data\\pkcsref\\pkcs8_test.pem"
 #else
 #define ASSET_DIR data
 #define ASSET_RSA_KEY "data/rsa/key.pem"
@@ -514,6 +521,7 @@ be expressed in the proper x509/DER format.
 #define ASSET_SECP521R1_KEY "data/secp521r1/key.pem"
 #define ASSET_SECP256R1_PKCS8_KEY "data/secp256r1-pkcs8/key.pem"
 #define ASSET_ED25519_KEY "data/ed25519/key.pem"
+#define ASSET_PKCS8_TEST "data/pkcsref/pkcs8_test.pem"
 #endif
 
 int test_load_one_file(char const* path)
@@ -613,6 +621,10 @@ int test_load_der()
 
     if (ret == 0) {
         ret = test_load_one_der_key(ASSET_SECP256R1_PKCS8_KEY);
+    }
+
+    if (ret == 0) {
+        ret = test_load_one_der_key(ASSET_PKCS8_TEST);
     }
 
     if (ret == 0) {

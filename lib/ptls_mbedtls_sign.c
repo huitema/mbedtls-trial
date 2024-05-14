@@ -278,7 +278,7 @@ int ptls_mbedtls_get_der_key(mbedtls_pem_context *pem, mbedtls_pk_type_t *pk_typ
 
 #if defined(MBEDTLS_RSA_C)
     /* Avoid calling mbedtls_pem_read_buffer() on non-null-terminated string */
-    if (key[keylen - 1] != '\0') {
+    if (key[keylen] != '\0') {
         ret = MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT;
     } else {
         ret = mbedtls_pem_read_buffer(pem, "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----", key, pwd, pwdlen,
@@ -293,14 +293,13 @@ int ptls_mbedtls_get_der_key(mbedtls_pem_context *pem, mbedtls_pk_type_t *pk_typ
     } else if (ret == MBEDTLS_ERR_PEM_PASSWORD_REQUIRED) {
         return MBEDTLS_ERR_PK_PASSWORD_REQUIRED;
     } else if (ret != MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT) {
-
         return ret;
     }
 #endif /* MBEDTLS_RSA_C */
 
 #if defined(MBEDTLS_PK_HAVE_ECC_KEYS)
     /* Avoid calling mbedtls_pem_read_buffer() on non-null-terminated string */
-    if (key[keylen - 1] != '\0') {
+    if (key[keylen] != '\0') {
         ret = MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT;
     } else {
         ret =
@@ -319,7 +318,7 @@ int ptls_mbedtls_get_der_key(mbedtls_pem_context *pem, mbedtls_pk_type_t *pk_typ
 #endif /* MBEDTLS_PK_HAVE_ECC_KEYS */
 
     /* Avoid calling mbedtls_pem_read_buffer() on non-null-terminated string */
-    if (key[keylen - 1] != '\0') {
+    if (key[keylen] != '\0') {
         ret = MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT;
     } else {
         ret = mbedtls_pem_read_buffer(pem, "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----", key, NULL, 0, &len);
@@ -333,7 +332,7 @@ int ptls_mbedtls_get_der_key(mbedtls_pem_context *pem, mbedtls_pk_type_t *pk_typ
 
 #if defined(MBEDTLS_PKCS12_C) || defined(MBEDTLS_PKCS5_C)
     /* Avoid calling mbedtls_pem_read_buffer() on non-null-terminated string */
-    if (key[keylen - 1] != '\0') {
+    if (key[keylen] != '\0') {
         ret = MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT;
     } else {
         ret = mbedtls_pem_read_buffer(pem, "-----BEGIN ENCRYPTED PRIVATE KEY-----", "-----END ENCRYPTED PRIVATE KEY-----", key,
@@ -768,8 +767,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
                 } else if (oid_length == sizeof(ptls_mbedtls_oid_rsa_key) &&
                     memcmp(pem.private_buf + oid_index, ptls_mbedtls_oid_rsa_key, sizeof(ptls_mbedtls_oid_rsa_key)) == 0) {
                     /* We recognized RSA */
-                    key_length = pem.private_buflen;
-                    ptls_mbedtls_set_rsa_key_attributes(signer, pem.private_buf, key_length);
+                    ptls_mbedtls_set_rsa_key_attributes(signer, pem.private_buf + key_index, key_length);
                 } else {
                     ret = PTLS_ERROR_NOT_AVAILABLE;
                 }
