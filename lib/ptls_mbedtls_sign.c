@@ -54,7 +54,6 @@ typedef struct st_ptls_mbedtls_sign_certificate_t {
     const ptls_mbedtls_signature_scheme_t *schemes;
 } ptls_mbedtls_sign_certificate_t;
 
-#if 1
 typedef struct st_ptls_mbedtls_certificate_t {
     ptls_verify_certificate_t super;
     mbedtls_x509_crt *trust_ca;
@@ -62,11 +61,13 @@ typedef struct st_ptls_mbedtls_certificate_t {
     int (*f_vrfy)(void*, mbedtls_x509_crt*, int, uint32_t*);
     void* p_vrfy;
 } ptls_mbedtls_verify_certificate_t;
-#endif
 
 static const unsigned char ptls_mbedtls_oid_ec_key[] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01};
 static const unsigned char ptls_mbedtls_oid_rsa_key[] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01};
+#if 0
+/* Commented out for now, as EDDSA is not yet supported by MbedTLS */
 static const unsigned char ptls_mbedtls_oid_ed25519[] = {0x2b, 0x65, 0x70};
+#endif
 
 static const ptls_mbedtls_signature_scheme_t rsa_signature_schemes[] = {{PTLS_SIGNATURE_RSA_PSS_RSAE_SHA256, PSA_ALG_SHA_256},
     {PTLS_SIGNATURE_RSA_PSS_RSAE_SHA384, PSA_ALG_SHA_384},
@@ -163,6 +164,9 @@ static int ptls_mbedtls_parse_ecdsa_field(const unsigned char *pem_buf, size_t p
     return ret;
 }
 
+#if 0
+/* Code commented out for now, as EDDSA is not supported yet in MbedTLS */
+
 /* On input, key_index points at the "key information" in a
 * "private key" message. For EDDSA, this contains an
 * octet string carrying the key itself. On return, key index
@@ -188,6 +192,7 @@ static int ptls_mbedtls_parse_eddsa_key(const unsigned char *pem_buf, size_t pem
     }
     return ret;
 }
+#endif
 
 /* If using PKCS8 encoding, the "private key" field contains the
 * same "ecdsa field" found in PEM "EC PRIVATE KEY" files. We
@@ -818,8 +823,6 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
     return ret;
 }
 
-#if 1
-
 /* Handling of certificates.
 * Certificates in picotls are used both at the client and the server side.
 * 
@@ -828,9 +831,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
 * that key and sends it as part of the "server hello". It is signed with
 * the server key.
 * 
-* On the server side, picotls expects?
-* 
-* The client is programmed with a list of root certificates. It should
+* The client is programmed with a list of trusted certificates. It should
 * process the list received from the server and verifies that it does
 * correctly link the server certificate to one of the certificates in the
 * root list.
@@ -840,30 +841,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
 * On the server side, we read the certificates from a PEM encoded
 * file, and provide it to the server.
 * 
-* int mbedtls_x509_crt_parse_der(mbedtls_x509_crt *chain, const unsigned char *buf, size_t buflen)
-*     => parse the DER code in the buffer, documents a cerificate chain
-*        in MbetTLS format.
-* 
-* int mbedtls_x509_crt_parse(mbedtls_x509_crt *chain, const unsigned char *buf, size_t buflen)
-*    => Parse one DER-encoded or one or more concatenated PEM-encoded certificates and
-*       add them to the chained list. 
-* 
-* int mbedtls_x509_crt_verify(mbedtls_x509_crt *crt, mbedtls_x509_crt *trust_ca, mbedtls_x509_crl *ca_crl, const char *cn, uint32_t *flags, int (*f_vrfy)(void*, mbedtls_x509_crt*, int, uint32_t*), void *p_vrfy)
-*    => check the certificate chain (crt) against a list of trusted ca (trust_ca) and
-*       a specified "common name". "ca_crl" is a revocation list.
-* 
-* Public key operations such as "verify message" require a key-id.  We should obtain that key ID by using "psa_import_key":
-* 
-* psa_status_t psa_import_key(const psa_key_attributes_t *attributes, const uint8_t *data, size_t data_length, mbedtls_svc_key_id_t *key)
-* 
-* The data and data length are probably obtained 
-*/
-
-/* load a PEM file in memory, adding a final 0 byte per MBEDTLS expectations */
-int ptls_mbedtls_load_file(char const* file_name, unsigned char** buf, size_t* n);
-
-/* verify certificate.
-* Picotls and then picoquic use a two phase API:
+* For verify certificate, picotls uses a two phase API:
 * 
 * - During initialization, prepare a "verify certificate callback"
 * - During the handshake, picotls executes the callback.
@@ -901,7 +879,8 @@ int ptls_mbedtls_load_file(char const* file_name, unsigned char** buf, size_t* n
 *   loading certificates from a `root` file.
 * - A certificate revocation list. We leave that parameter NULL for now.
 * - The expected server name, a NULL terminated string.
-* - A "verify" function pointer, and its argument. This function 
+* - A "verify" function pointer, and its argument.
+* 
 * The call returns 0 (and flags set to 0) if the chain was verified and valid,
 * MBEDTLS_ERR_X509_CERT_VERIFY_FAILED if the chain was verified but found to
 * be invalid, in which case *flags will have one or more MBEDTLS_X509_BADCERT_XXX
@@ -958,7 +937,7 @@ typedef struct st_mbedtls_message_verify_ctx_t {
 
 uint16_t mbedtls_verify_sign_algos[] = {
     0x0201, 0x0203, 0x0401, 0x0403, 0x501, 0x0503, 0x0601, 0x0603,
-    0x0804, 0x0805, 0x0806, 0x0807, 0x0808,
+    0x0804, 0x0805, 0x0806,
     0xFFFF
 };
 
@@ -989,6 +968,7 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
             alg = PSA_ALG_ECDSA(PSA_ALG_SHA_256);
             break;
 #if 0
+        /* For further study. These two algorithms might be available in MbedTLS */
         case 0x0420: /* rsa_pkcs1_sha256_legacy */
             break;
         case 0x0520: /* rsa_pkcs1_sha384_legacy */
@@ -1015,12 +995,15 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
         case 0x0806: /* PTLS_SIGNATURE_RSA_PSS_RSAE_SHA512 */
             alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_512);
             break;
+#if 0
+        /* Commented out, as EDDSA is not supported yet in MbedTLS*/
         case 0x0807: /* PTLS_SIGNATURE_ED25519 */
             alg = PSA_ALG_ED25519PH;
             break;
         case 0x0808: /* PTLS_SIGNATURE_ED448 */
             alg = PSA_ALG_ED448PH;
             break;
+#endif
         default:
             break;
         }
@@ -1072,8 +1055,6 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
     *verifier = NULL;
     *verify_data = NULL;
 
-
-
     /* If any certs are given, convert them to MbedTLS representation, then verify the cert chain. If no certs are given, just give
     * the override_callback to see if we want to stay fail open. */
     if (num_certs == 0) {
@@ -1096,7 +1077,7 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
         if (ret == 0) {
             uint32_t flags = 0;
 
-            int verify_ret = mbedtls_x509_crt_verify(&chain_head, self->trust_ca, NULL /* ca_crl */, server_name, &flags,
+            int verify_ret = mbedtls_x509_crt_verify(&chain_head, self->trust_ca, self->trust_crl, server_name, &flags,
                 self->f_vrfy, self->p_vrfy);
 
             if (verify_ret != 0) {
@@ -1155,6 +1136,9 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
 * up to 16 certificates, and convert the base64 encoded
 * data to DER encoded binary. No attempt is made to verify
 * that these actually are certificates.
+* 
+* Discuss: picotls has a built in function for this.
+* Is it really necessary to program an alternative?
 */
 int picoquic_mbedtls_get_certs_from_file(char const * pem_fname, ptls_iovec_t** pvec, size_t * count)
 {
@@ -1211,7 +1195,7 @@ int ptls_mbedtls_load_certificates(ptls_context_t *ctx, char const *cert_pem_fil
         &ctx->certificates.count);
 }
 
-/* Creating the call back. This API is not really mandated by picotls. The "backend"
+/* Creating the call back. This API is not described by picotls. The "backend"
 * merely has to provide a "certicate verifier" callback. We consider two ways of
 * providing this callback: an API very close to the details of the MBedTLS code,
 * with a list of explicit parameters, and a "portable" API whose only
@@ -1293,4 +1277,3 @@ void ptls_mbedtls_dispose_verify_certificate(ptls_context_t* ptls_ctx)
         ptls_ctx->verify_certificate = NULL;
     }
 }
-#endif
