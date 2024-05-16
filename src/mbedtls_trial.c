@@ -899,7 +899,6 @@ int test_sign_verify_one(char const* key_path, char const * cert_path, char cons
     ptls_context_t* client_ctx = test_sign_set_ptls_context(key_path, cert_path, trusted_path, 0, client_config);
     ptls_t* client_tls = NULL;
     ptls_t* server_tls = NULL;
-    unsigned char* cert_message = NULL;
     uint16_t selected_algorithm = 0;
     uint8_t signature_smallbuf[256];
     ptls_buffer_t signature;
