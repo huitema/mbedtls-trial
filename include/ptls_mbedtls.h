@@ -75,7 +75,7 @@ int ptls_mbedtls_sign_certificate(ptls_sign_certificate_t* _self, ptls_t* tls, p
     const uint16_t* algorithms, size_t num_algorithms);
 
 int picoquic_mbedtls_get_certs_from_file(char const* pem_fname, ptls_iovec_t** vec, size_t* count);
-
+#if 0
 typedef struct st_ptls_mbedtls_certificate_t {
     ptls_verify_certificate_t super;
     mbedtls_x509_crt *trust_ca;
@@ -83,7 +83,7 @@ typedef struct st_ptls_mbedtls_certificate_t {
     int (*f_vrfy)(void*, mbedtls_x509_crt*, int, uint32_t*);
     void* p_vrfy;
 } ptls_mbedtls_verify_certificate_t;
-
+#endif
 int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* pem_fname);
 void ptls_mbedtls_dispose_verify_certificate(ptls_context_t* ptls_ctx);
 

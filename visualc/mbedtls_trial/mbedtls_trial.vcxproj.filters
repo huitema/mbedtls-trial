@@ -24,8 +24,5 @@
     <ClCompile Include="..\..\lib\ptls_mbedtls_sign.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\lib\ptls_mbedtls_verify.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

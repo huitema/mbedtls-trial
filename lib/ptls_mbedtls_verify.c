@@ -39,6 +39,8 @@
 #include "psa/crypto_values.h"
 #include "ptls_mbedtls.h"
 
+#if 0
+
 /* Handling of certificates.
 * Certificates in picotls are used both at the client and the server side.
 * 
@@ -512,3 +514,4 @@ void ptls_mbedtls_dispose_verify_certificate(ptls_context_t* ptls_ctx)
         ptls_ctx->verify_certificate = NULL;
     }
 }
+#endif

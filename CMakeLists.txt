@@ -61,7 +61,6 @@ endif()
 set(PTLS_MBEDTLS_LIBRARY_FILES
     lib/ptls_mbedtls.c
     lib/ptls_mbedtls_sign.c
-    lib/ptls_mbedtls_verify.c
     )
 
 set(PTLS_MBEDTLS_CORE_HEADERS

@@ -153,7 +153,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\lib\ptls_mbedtls.c" />
     <ClCompile Include="..\..\lib\ptls_mbedtls_sign.c" />
-    <ClCompile Include="..\..\lib\ptls_mbedtls_verify.c" />
     <ClCompile Include="..\..\src\mbedtls_trial.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
