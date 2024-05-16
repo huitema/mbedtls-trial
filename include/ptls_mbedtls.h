@@ -85,6 +85,7 @@ typedef struct st_ptls_mbedtls_certificate_t {
 } ptls_mbedtls_verify_certificate_t;
 
 int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* pem_fname);
+void ptls_mbedtls_dispose_verify_certificate(ptls_context_t* ptls_ctx);
 
 int ptls_mbedtls_load_file(char const* file_name, unsigned char** buf, size_t* n);
 

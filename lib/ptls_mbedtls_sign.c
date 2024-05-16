@@ -350,7 +350,7 @@ int ptls_mbedtls_get_der_key(mbedtls_pem_context *pem, mbedtls_pk_type_t *pk_typ
 #endif
 
 const ptls_mbedtls_signature_scheme_t *ptls_mbedtls_select_signature_scheme(const ptls_mbedtls_signature_scheme_t *available,
-    const uint16_t *algorithms, size_t num_algorithms)
+    const uint16_t *algorithms, size_t num_algorithms, uint16_t * selected_algorithm)
 {
     const ptls_mbedtls_signature_scheme_t *scheme;
 
@@ -358,6 +358,7 @@ const ptls_mbedtls_signature_scheme_t *ptls_mbedtls_select_signature_scheme(cons
     for (scheme = available; scheme->scheme_id != UINT16_MAX; ++scheme) {
         for (size_t i = 0; i != num_algorithms; ++i) {
             if (algorithms[i] == scheme->scheme_id) {
+                *selected_algorithm = scheme->scheme_id;
                 return scheme;
             }
         }
@@ -487,7 +488,7 @@ int ptls_mbedtls_sign_certificate(ptls_sign_certificate_t *_self, ptls_t *tls, p
     ptls_mbedtls_sign_certificate_t *self =
         (ptls_mbedtls_sign_certificate_t *)(((unsigned char *)_self) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
     /* First, find the set of compatible algorithms */
-    const ptls_mbedtls_signature_scheme_t *scheme = ptls_mbedtls_select_signature_scheme(self->schemes, algorithms, num_algorithms);
+    const ptls_mbedtls_signature_scheme_t *scheme = ptls_mbedtls_select_signature_scheme(self->schemes, algorithms, num_algorithms, selected_algorithm);
 
     if (scheme == NULL) {
         ret = PTLS_ERROR_INCOMPATIBLE_KEY;
@@ -757,13 +758,17 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
                     if (ret == 0) {
                         ret = ptls_mbedtls_set_ec_key_attributes(signer, key_length);
                     }
+#if 0
                 } else if (oid_length == sizeof(ptls_mbedtls_oid_ed25519) &&
                     memcmp(pem.private_buf + oid_index, ptls_mbedtls_oid_ed25519, sizeof(ptls_mbedtls_oid_ed25519)) == 0) {
+                    /* This code looks correct, but EDDSA is not supported yet by MbedTLS,
+                    * and attempts to import the key will result in an error, so commenting out for now. */
                     /* We recognized ED25519 -- PSA_ECC_FAMILY_TWISTED_EDWARDS -- PSA_ALG_ED25519PH */
-                    psa_set_key_algorithm(&signer->attributes, PSA_ALG_PURE_EDDSA);
+                    psa_set_key_algorithm(&signer->attributes, PSA_ALG_ED25519PH);
                     psa_set_key_type(&signer->attributes, PSA_ECC_FAMILY_TWISTED_EDWARDS);
                     ret = ptls_mbedtls_parse_eddsa_key(pem.private_buf, pem.private_buflen, &key_index, &key_length);
                     psa_set_key_bits(&signer->attributes, 256);
+#endif
                 } else if (oid_length == sizeof(ptls_mbedtls_oid_rsa_key) &&
                     memcmp(pem.private_buf + oid_index, ptls_mbedtls_oid_rsa_key, sizeof(ptls_mbedtls_oid_rsa_key)) == 0) {
                     /* We recognized RSA */

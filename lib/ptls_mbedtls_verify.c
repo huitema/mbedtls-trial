@@ -176,7 +176,8 @@ typedef struct st_mbedtls_message_verify_ctx_t {
 } mbedtls_message_verify_ctx_t;
 
 uint16_t mbedtls_verify_sign_algos[] = {
-    0x0201, 0x0203, 0x401, 0x0403, 0x501, 0x0503, 0x0603,
+    0x0201, 0x0203, 0x0401, 0x0403, 0x501, 0x0503, 0x0601, 0x0603,
+    0x0804, 0x0805, 0x0806, 0x0807, 0x0808,
     0xFFFF
 };
 
@@ -206,10 +207,12 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
         case 0x0403: /*  PTLS_SIGNATURE_ECDSA_SECP256R1_SHA256 */
             alg = PSA_ALG_ECDSA(PSA_ALG_SHA_256);
             break;
+#if 0
         case 0x0420: /* rsa_pkcs1_sha256_legacy */
             break;
         case 0x0520: /* rsa_pkcs1_sha384_legacy */
             break;
+#endif
         case 0x501: /* rsa_pkcs1_sha384 */
             alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_384);
             break;
@@ -232,8 +235,10 @@ static int mbedtls_verify_sign(void *verify_ctx, uint16_t algo, ptls_iovec_t dat
             alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_512);
             break;
         case 0x0807: /* PTLS_SIGNATURE_ED25519 */
+            alg = PSA_ALG_ED25519PH;
             break;
         case 0x0808: /* PTLS_SIGNATURE_ED448 */
+            alg = PSA_ALG_ED448PH;
             break;
         default:
             break;
@@ -286,26 +291,31 @@ static int mbedtls_verify_certificate(ptls_verify_certificate_t *_self, ptls_t *
     *verifier = NULL;
     *verify_data = NULL;
 
+
+
     /* If any certs are given, convert them to MbedTLS representation, then verify the cert chain. If no certs are given, just give
     * the override_callback to see if we want to stay fail open. */
     if (num_certs == 0) {
         ret = PTLS_ALERT_CERTIFICATE_REQUIRED;
     } else {
         mbedtls_x509_crt* previous_chain = &chain_head;
+        mbedtls_x509_crt_init(&chain_head);
 
         for (i = 0; i != num_certs; ++i) {
-            ret = mbedtls_x509_crt_parse(previous_chain, certs[i].base, certs[i].len);
-            if (previous_chain->next == NULL) {
-                ret = PTLS_ALERT_BAD_CERTIFICATE;
-                break;
+            ret = mbedtls_x509_crt_parse_der(previous_chain, certs[i].base, certs[i].len);
+            if (i != 0) {
+                if (previous_chain->next == NULL) {
+                    ret = PTLS_ALERT_BAD_CERTIFICATE;
+                    break;
+                }
+                previous_chain = previous_chain->next;
             }
-            previous_chain = previous_chain->next;
         }
 
         if (ret == 0) {
             uint32_t flags = 0;
 
-            int verify_ret = mbedtls_x509_crt_verify(chain_head.next, self->trust_ca, NULL /* ca_crl */, server_name, &flags,
+            int verify_ret = mbedtls_x509_crt_verify(&chain_head, self->trust_ca, NULL /* ca_crl */, server_name, &flags,
                 self->f_vrfy, self->p_vrfy);
 
             if (verify_ret != 0) {
@@ -398,6 +408,7 @@ int picoquic_mbedtls_get_certs_from_file(char const * pem_fname, ptls_iovec_t** 
                         ret = PTLS_ERROR_NO_MEMORY;
                     }
                     else {
+                        memcpy(cert, pem.private_buf, pem.private_buflen);
                         (*pvec)[*count].base = cert;
                         (*pvec)[*count].len = pem.private_buflen;
                         *count += 1;
@@ -452,26 +463,52 @@ int ptls_mbedssl_init_verify_certificate_complete(ptls_context_t * ptls_ctx,
 int ptls_mbedtls_init_verify_certificate(ptls_context_t* ptls_ctx, char const* pem_fname)
 {
     int ret = 0;
-    mbedtls_x509_crt chain_head = { 0 };
+    mbedtls_x509_crt* chain_head = (mbedtls_x509_crt*)malloc(sizeof(mbedtls_x509_crt));
 
-    int psa_ret = mbedtls_x509_crt_parse_file(&chain_head, pem_fname);
-    if (psa_ret == 0) {
-        ret = ptls_mbedssl_init_verify_certificate_complete(ptls_ctx,
-            chain_head.next, NULL, NULL, NULL);
-    }
-    else if (psa_ret > 0) {
-        /* some of the certificates could not parsed */
-        ret = PTLS_ALERT_BAD_CERTIFICATE;
-    }
-    else if (psa_ret == PSA_ERROR_INSUFFICIENT_MEMORY) {
+    if (chain_head == NULL) {
         ret = PTLS_ERROR_NO_MEMORY;
-    } else{
-        ret = PTLS_ERROR_LIBRARY;
     }
+    else {
+        int psa_ret;
+        mbedtls_x509_crt_init(chain_head);
 
-    if (ret != 0 && chain_head.next != NULL) {
-        mbedtls_x509_crt_free(chain_head.next);
+        psa_ret = mbedtls_x509_crt_parse_file(chain_head, pem_fname);
+        if (psa_ret == 0) {
+            ret = ptls_mbedssl_init_verify_certificate_complete(ptls_ctx,
+                chain_head, NULL, NULL, NULL);
+        }
+        else if (psa_ret > 0) {
+            /* some of the certificates could not parsed */
+            ret = PTLS_ALERT_BAD_CERTIFICATE;
+        }
+        else if (psa_ret == PSA_ERROR_INSUFFICIENT_MEMORY) {
+            ret = PTLS_ERROR_NO_MEMORY;
+        }
+        else {
+            ret = PTLS_ERROR_LIBRARY;
+        }
+
+        if (ret != 0 && chain_head != NULL) {
+            mbedtls_x509_crt_free(chain_head);
+        }
     }
-
     return ret;
+}
+
+void ptls_mbedtls_dispose_verify_certificate(ptls_context_t* ptls_ctx)
+{
+    ptls_mbedtls_verify_certificate_t* verifier =
+        (ptls_mbedtls_verify_certificate_t*)ptls_ctx->verify_certificate;
+    if (verifier != NULL) {
+        if (verifier->trust_ca != NULL) {
+            mbedtls_x509_crt_free(verifier->trust_ca);
+            verifier->trust_ca = NULL;
+        }
+        if (verifier->trust_crl != NULL) {
+            mbedtls_x509_crl_free(verifier->trust_crl);
+        }
+        memset(verifier, 0, sizeof(ptls_mbedtls_verify_certificate_t));
+        free(verifier);
+        ptls_ctx->verify_certificate = NULL;
+    }
 }
