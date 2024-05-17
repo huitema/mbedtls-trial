@@ -1,6 +1,11 @@
 # - Try to find MbedTLS
 # set(MBEDTLS_LIBRARY mbedtls)
 # set(MBEDTLS_INCLUDE_DIRS ${MBEDTLS_SOURCE_DIR}/include)
+
+Message( STATUS "MBEDTLS_PREFIX: ${MBEDTLS_PREFIX}")
+Message( STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
+Message( STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
+
 find_path(MBEDTLS_INCLUDE_DIRS
     NAMES mbedtls/build_info.h psa/crypto.h
     HINTS ${MBEDTLS_PREFIX}/include/

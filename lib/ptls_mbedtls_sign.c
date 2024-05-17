@@ -33,10 +33,7 @@
 #include <mbedtls/pk.h>
 #include <mbedtls/pem.h>
 #include <mbedtls/error.h>
-#if 1
-#include "mbedtls/error.h"
-#include "mbedtls/x509_crt.h"
-#endif
+#include <mbedtls/x509_crt.h>
 #include <psa/crypto.h>
 #include <psa/crypto_struct.h>
 #include <psa/crypto_values.h>
@@ -54,7 +51,7 @@ typedef struct st_ptls_mbedtls_sign_certificate_t {
     const ptls_mbedtls_signature_scheme_t *schemes;
 } ptls_mbedtls_sign_certificate_t;
 
-typedef struct st_ptls_mbedtls_certificate_t {
+typedef struct st_ptls_mbedtls_verify_certificate_t {
     ptls_verify_certificate_t super;
     mbedtls_x509_crt *trust_ca;
     mbedtls_x509_crl *trust_crl;
@@ -80,8 +77,11 @@ static const ptls_mbedtls_signature_scheme_t secp384r1_signature_schemes[] = {
     {PTLS_SIGNATURE_ECDSA_SECP384R1_SHA384, PSA_ALG_SHA_384}, {UINT16_MAX, PSA_ALG_NONE}};
 static const ptls_mbedtls_signature_scheme_t secp521r1_signature_schemes[] = {
     {PTLS_SIGNATURE_ECDSA_SECP521R1_SHA512, PSA_ALG_SHA_512}, {UINT16_MAX, PSA_ALG_NONE}};
+#if 0
+/* Commented out for now, as EDDSA is not yet supported by MbedTLS */
 static const ptls_mbedtls_signature_scheme_t ed25519_signature_schemes[] = {{PTLS_SIGNATURE_ED25519, PSA_ALG_NONE},
     {UINT16_MAX, PSA_ALG_NONE}};
+#endif
 
 #if defined(MBEDTLS_PEM_PARSE_C)
 
