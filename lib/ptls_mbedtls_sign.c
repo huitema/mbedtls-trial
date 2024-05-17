@@ -420,9 +420,11 @@ int ptls_mbedtls_set_schemes_from_key_params(psa_algorithm_t key_algo, size_t ke
             break;
         }
         break;
+#if 0
     case PSA_ALG_ED25519PH:
         *schemes = ed25519_signature_schemes;
         break;
+#endif
     default:
         /* printf("Unknown algo: %x\n", key_algo); */
         ret = -1;
@@ -468,9 +470,11 @@ int ptls_mbedtls_set_available_schemes(ptls_mbedtls_sign_certificate_t *signer)
             break;
         }
         break;
+#if 0
     case PSA_ALG_ED25519PH:
-        signer->schemes = ed25519_signature_schemes;
+        *schemes = ed25519_signature_schemes;
         break;
+#endif
     default:
         ret = -1;
     }
@@ -760,8 +764,6 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
                 ret = ptls_mbedtls_set_ec_key_attributes(signer, key_length);
             }
         } else if (pk_type == MBEDTLS_PK_NONE) {
-            /* TODO: not clear whether MBDED TLS supports ED25519 yet. Probably not. */
-            /* Should have option to encode RSA or ECDSA using PKCS8 */
             size_t oid_index = 0;
             size_t oid_length = 0;
 
@@ -778,6 +780,7 @@ int ptls_mbedtls_load_private_key(ptls_context_t *ctx, char const *pem_fname)
                         ret = ptls_mbedtls_set_ec_key_attributes(signer, key_length);
                     }
 #if 0
+                /* Commenting out as MbedTLS does not support 25519 yet */
                 } else if (oid_length == sizeof(ptls_mbedtls_oid_ed25519) &&
                     memcmp(pem.private_buf + oid_index, ptls_mbedtls_oid_ed25519, sizeof(ptls_mbedtls_oid_ed25519)) == 0) {
                     /* This code looks correct, but EDDSA is not supported yet by MbedTLS,
