@@ -562,6 +562,13 @@ be expressed in the proper x509/DER format.
 #define ASSET_TEST_CA "data/test-ca.crt"
 #endif
 
+#define ASSET_RSA_NAME "rsa.test.example.com"
+#define ASSET_RSA_PKCS8_NAME "rsa.test.example.com"
+#define ASSET_SECP256R1_NAME "test.example.com"
+#define ASSET_SECP384R1_NAME "secp384r1.test.example.com"
+#define ASSET_SECP521R1_NAME "secp521r1.test.example.com"
+#define ASSET_SECP256R1_PKCS8_NAME "test.example.com"
+
 int test_load_one_file(char const* path)
 {
     size_t n;
@@ -613,6 +620,13 @@ int test_load_file()
     return ret;
 }
 
+typedef struct st_mbedtls_message_verify_ctx_t {
+    psa_key_id_t key_id;
+} mbedtls_message_verify_ctx_t;
+
+int mbedtls_verify_sign(void* verify_ctx, uint16_t algo, ptls_iovec_t data, ptls_iovec_t signature);
+psa_algorithm_t mbedtls_get_psa_alg_from_tls_number(uint16_t tls_algo);
+
 int test_load_one_key(char const* path)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
@@ -660,6 +674,71 @@ int test_load_one_key(char const* path)
         else {
             printf("Sign failed, key: %s, scheme: %x, signature size: %zu\n", path, selected_algorithm, outbuf.off);
         }
+
+        if (ret == 0) {
+            /* Create a verifier context and attempt to check the key */
+            ptls_iovec_t sig;
+            uint8_t pubkey_data[1024];
+            size_t pubkey_len = 0;
+            psa_status_t  psa_status;
+            psa_key_attributes_t attr;
+            psa_key_attributes_t public_attributes = psa_key_attributes_init();
+
+            if ((psa_status = psa_export_public_key(signer->key_id, pubkey_data, sizeof(pubkey_data), &pubkey_len)) != 0) {
+                printf("Cannot export public key, status = %d\n", psa_status);
+                ret = -1;
+            }
+
+            if (ret == 0) {
+                switch (psa_get_key_type(&signer->attributes)) {
+                case PSA_KEY_TYPE_RSA_KEY_PAIR:
+                    psa_set_key_type(&public_attributes, PSA_KEY_TYPE_RSA_PUBLIC_KEY);
+                    psa_set_key_algorithm(&public_attributes, PSA_ALG_RSA_PKCS1V15_SIGN_RAW);
+                    break;
+                case PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1):
+                    psa_set_key_type(&public_attributes, PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1));
+                    break;
+                default:
+                    /* TODO: add ED25519 when supported by MbedTLS */
+                    printf("Cannot derive public key from key type.\n");
+                    ret = -1;
+                    break;
+                }
+            }
+
+            if (ret == 0) {
+                mbedtls_message_verify_ctx_t* verify_ctx = (mbedtls_message_verify_ctx_t*)malloc(sizeof(mbedtls_message_verify_ctx_t));
+                if (verify_ctx == NULL) {
+                    ret = -1;
+                }
+                else {
+                    psa_algorithm_t sign_alg = mbedtls_get_psa_alg_from_tls_number(selected_algorithm);
+                    psa_set_key_usage_flags(&public_attributes, PSA_KEY_USAGE_VERIFY_MESSAGE | PSA_KEY_USAGE_VERIFY_HASH);
+                    psa_set_key_algorithm(&public_attributes, sign_alg /* psa_get_key_algorithm(&signer->attributes) */);
+
+                    if ((psa_status = psa_import_key(&public_attributes, pubkey_data, pubkey_len, &verify_ctx->key_id)) != 0) {
+                        printf("Cannot import public key, status = %d\n", psa_status);
+                        free(verify_ctx);
+                        ret = -1;
+                    }
+                    else {
+
+
+                        sig.base = outbuf.base;
+                        sig.len = outbuf.off;
+
+                        ret = mbedtls_verify_sign(verify_ctx, selected_algorithm, input, sig);
+                        if (ret == 0) {
+                            printf("Verified message signature.\n");
+                        }
+                        else {
+                            printf("Failed to verify signature, ret = %d\n", ret);
+                        }
+                    }
+                }
+            }
+        }
+
         ptls_buffer_dispose(&outbuf);
         ptls_mbedtls_dispose_sign_certificate(&signer->super);
     }
@@ -774,8 +853,6 @@ uint16_t test_sign_signature_algorithms[] = {
 };
 
 size_t num_test_sign_signature_algorithms = sizeof(test_sign_signature_algorithms) / sizeof(uint16_t);
-
-char const* test_sign_server_name = "test.example.com";
 
 int test_sign_init_server_mbedtls(ptls_context_t* ctx, char const* key_path, char const* cert_path)
 {
@@ -892,7 +969,7 @@ ptls_context_t* test_sign_set_ptls_context(char const* key_path, char const* cer
     return ctx;
 }
 
-int test_sign_verify_one(char const* key_path, char const * cert_path, char const * trusted_path, int server_config, int client_config)
+int test_sign_verify_one(char const* key_path, char const * cert_path, char const * trusted_path, char const * server_name, int server_config, int client_config)
 {
     int ret = 0;
     ptls_context_t* server_ctx = test_sign_set_ptls_context(key_path, cert_path, trusted_path, 1, server_config); 
@@ -944,7 +1021,7 @@ int test_sign_verify_one(char const* key_path, char const * cert_path, char cons
 
     if (ret == 0) {
         /* verify the certificates */
-        ret = client_ctx->verify_certificate->cb(client_ctx->verify_certificate, client_tls, test_sign_server_name,
+        ret = client_ctx->verify_certificate->cb(client_ctx->verify_certificate, client_tls, server_name,
             &certificate_verify.cb, &certificate_verify.verify_ctx,
             server_ctx->certificates.list, server_ctx->certificates.count);
         if (ret != 0) {
@@ -959,6 +1036,7 @@ int test_sign_verify_one(char const* key_path, char const * cert_path, char cons
             ret = certificate_verify.cb(certificate_verify.verify_ctx, selected_algorithm, input, sig);
             if (ret != 0) {
                 printf("verify_signature (%s) returns 0x%x\n", key_path, ret);
+                ret = -1;
             }
         }
         else if (certificate_verify.cb != NULL) {
@@ -992,23 +1070,23 @@ int test_sign_verify()
     int ret = 0;
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_RSA_KEY, ASSET_RSA_CERT, ASSET_TEST_CA, 0, 0);
+        ret = test_sign_verify_one(ASSET_RSA_KEY, ASSET_RSA_CERT, ASSET_TEST_CA, ASSET_RSA_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP256R1_KEY, ASSET_SECP256R1_CERT, ASSET_SECP256R1_CERT, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP256R1_KEY, ASSET_SECP256R1_CERT, ASSET_SECP256R1_CERT, ASSET_SECP256R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP384R1_KEY, ASSET_SECP384R1_CERT, ASSET_SECP384R1_CERT, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP384R1_KEY, ASSET_SECP384R1_CERT, ASSET_SECP384R1_CERT, ASSET_SECP384R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP521R1_KEY, ASSET_SECP521R1_CERT, ASSET_SECP521R1_CERT, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP521R1_KEY, ASSET_SECP521R1_CERT, ASSET_SECP521R1_CERT, ASSET_SECP521R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP256R1_PKCS8_KEY, ASSET_SECP256R1_PKCS8_CERT, ASSET_SECP256R1_PKCS8_CERT, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP256R1_PKCS8_KEY, ASSET_SECP256R1_PKCS8_CERT, ASSET_SECP256R1_PKCS8_CERT, ASSET_SECP256R1_PKCS8_NAME, 0, 0);
     }
 
     return ret;
