@@ -59,10 +59,12 @@ if(ENABLE_UBSAN)
 endif()
 
 set(PTLS_MBEDTLS_LIBRARY_FILES
-    lib/ptls_mbedtls.c)
+    lib/ptls_mbedtls.c
+    lib/ptls_mbedtls_sign.c
+    )
 
 set(PTLS_MBEDTLS_CORE_HEADERS
-     lib/ptls_mbedtls.h)
+     include/ptls_mbedtls.h)
 
 OPTION(PTLS_MBEDTLS_FETCH_PTLS "Fetch PicoTLS during configuration" OFF)
 if(PTLS_MBEDTLS_FETCH_PTLS)
@@ -135,10 +137,10 @@ set_ptls_mbedtls_compile_settings(ptls_mbedtls-core)
 add_executable(ptls_mbedtls_trial
     src/mbedtls_trial.c)
 target_link_libraries(ptls_mbedtls_trial
-    PRIVATE
+    PUBLIC
+        ptls_mbedtls-core
         ${PTLS_LIBRARIES}
-        ${MBEDTLS_LIBRARIES}
-        ptls_mbedtls-core)
+        ${MBEDTLS_LIBRARIES})
 target_include_directories(ptls_mbedtls_trial 
      PRIVATE
         ${PTLS_INCLUDE_DIRS}

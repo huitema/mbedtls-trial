@@ -38,6 +38,7 @@
 
 #include "mbedtls/ecdh.h"
 
+
 /* Init and free functions. Init should be used before starting using
 * library functions. Free should be used before leaving the program.
 */
@@ -101,7 +102,6 @@ static void ptls_mbedtls_hash_final(struct st_ptls_hash_context_t* _ctx, void* m
 static struct st_ptls_hash_context_t* ptls_mbedtls_hash_clone(struct st_ptls_hash_context_t* _src)
 {
     ptls_mbedtls_hash_ctx_t* ctx = (ptls_mbedtls_hash_ctx_t*)malloc(sizeof(ptls_mbedtls_hash_ctx_t));
-    const ptls_mbedtls_hash_ctx_t* src = (const ptls_mbedtls_hash_ctx_t*)_src;
 
     if (ctx != NULL) {
         ptls_mbedtls_hash_ctx_t* src = (ptls_mbedtls_hash_ctx_t*)_src;

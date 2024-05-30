@@ -1,0 +1,65 @@
+---
+name: "ci-test"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  mbedtls:
+    name: ci-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          # We must fetch at least the immediate parents so that if this is
+          # a pull request then we can checkout the head.
+          fetch-depth: 2
+          submodules: 'recursive'
+
+      - name: Installing MbedTLS
+        run: |
+             pwd
+             cd ..
+             git clone https://github.com/Mbed-TLS/mbedtls
+             cd mbedtls
+             echo "cloned mbedtls"
+             git submodule init
+             git submodule update
+             mkdir build
+             cd build
+             cmake -S .. .
+             echo "cmake done"
+             make
+             echo "compiled MbedTLS"
+             pwd
+             cd ../../mbedtls-trial
+             pwd
+             ls
+      - name: Building picotls
+        run: |
+             sudo apt-get install clangd
+             sudo apt-get install -y libssl-dev
+             echo $CC
+             echo $CXX
+             # $CC --version
+             chmod +x ./ci/build_picotls.sh
+             ./ci/build_picotls.sh
+
+      - name: Building mbedtls-trial
+        run: |
+             cmake .
+             make
+
+      - name: Perform Unit Tests
+        run: |
+             ulimit -c unlimited -S
+             ./ptls_mbedtls_trial && RESULT=$?
+             if [[ ${RESULT} == 0 ]]; then exit 0; fi;
+             exit 1
