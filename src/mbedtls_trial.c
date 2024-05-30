@@ -15,6 +15,7 @@
 #include "picotls/minicrypto.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/pem.h"
+#include "mbedtls/x509_crt.h"
 #include "mbedtls/error.h"
 
 int test_random();
@@ -26,6 +27,7 @@ int test_key_exchange(ptls_key_exchange_algorithm_t* client, ptls_key_exchange_a
 int test_load_file();
 int test_load_key();
 int test_load_key_fail();
+int test_retrieve_pubkey();
 int test_sign_verify();
 
 int main(int argc, char ** argv)
@@ -127,6 +129,11 @@ int main(int argc, char ** argv)
         if (ret == 0) {
             ret = test_load_key_fail();
             printf("test load key fail returns: %d\n", ret);
+        }
+
+        if (ret == 0) {
+            ret = test_retrieve_pubkey();
+            printf("test retrieve pubkey returns: %d\n", ret);
         }
 
         if (ret == 0) {
@@ -599,24 +606,9 @@ int test_load_file()
     }
 
     if (ret == 0) {
-        ret = test_load_one_file(ASSET_SECP256R1_KEY);
+        ret = test_load_one_file(ASSET_SECP256R1_PKCS8_CERT);
     }
 
-    if (ret == 0) {
-        ret = test_load_one_file(ASSET_SECP384R1_KEY);
-    }
-
-    if (ret == 0) {
-        ret = test_load_one_file(ASSET_SECP521R1_KEY);
-    }
-
-    if (ret == 0) {
-        ret = test_load_one_file(ASSET_SECP256R1_PKCS8_KEY);
-    }
-
-    if (ret == 0) {
-        ret = test_load_one_file(ASSET_RSA_PKCS8_KEY);
-    }
     return ret;
 }
 
@@ -630,8 +622,7 @@ psa_algorithm_t mbedtls_get_psa_alg_from_tls_number(uint16_t tls_algo);
 int test_load_one_key(char const* path)
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
-    unsigned char hash[32];
-    const unsigned char h0[32] = {
+    unsigned char test_message[32] = {
         1, 2, 3, 4, 5, 6, 7, 8,
         9, 10, 11, 12, 13, 14, 15, 16,
         17, 18, 19, 20, 21, 22, 23, 24,
@@ -649,16 +640,15 @@ int test_load_one_key(char const* path)
     }
     else {
         /* Try to sign something */
-        int ret;
         ptls_mbedtls_sign_certificate_t* signer = (ptls_mbedtls_sign_certificate_t*)
             (((unsigned char*)ctx.sign_certificate) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
         ptls_buffer_t outbuf;
         uint8_t outbuf_smallbuf[256];
-        ptls_iovec_t input = { hash, sizeof(hash) };
+        ptls_iovec_t input = { test_message, sizeof(test_message) };
         uint16_t selected_algorithm = 0;
         int num_algorithms = 0;
         uint16_t algorithms[16];
-        memcpy(hash, h0, 32);
+
         while (signer->schemes[num_algorithms].scheme_id != UINT16_MAX && num_algorithms < 16) {
             algorithms[num_algorithms] = signer->schemes[num_algorithms].scheme_id;
             num_algorithms++;
@@ -681,7 +671,6 @@ int test_load_one_key(char const* path)
             uint8_t pubkey_data[1024];
             size_t pubkey_len = 0;
             psa_status_t  psa_status;
-            psa_key_attributes_t attr;
             psa_key_attributes_t public_attributes = psa_key_attributes_init();
 
             if ((psa_status = psa_export_public_key(signer->key_id, pubkey_data, sizeof(pubkey_data), &pubkey_len)) != 0) {
@@ -693,7 +682,7 @@ int test_load_one_key(char const* path)
                 switch (psa_get_key_type(&signer->attributes)) {
                 case PSA_KEY_TYPE_RSA_KEY_PAIR:
                     psa_set_key_type(&public_attributes, PSA_KEY_TYPE_RSA_PUBLIC_KEY);
-                    psa_set_key_algorithm(&public_attributes, PSA_ALG_RSA_PKCS1V15_SIGN_RAW);
+                    /* psa_set_key_algorithm(&public_attributes, PSA_ALG_RSA_PKCS1V15_SIGN_RAW); */
                     break;
                 case PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1):
                     psa_set_key_type(&public_attributes, PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1));
@@ -722,8 +711,6 @@ int test_load_one_key(char const* path)
                         ret = -1;
                     }
                     else {
-
-
                         sig.base = outbuf.base;
                         sig.len = outbuf.off;
 
@@ -818,7 +805,113 @@ int test_load_key_fail()
     return ret;
 }
 
-#if 1
+/* testing of public key export.
+* The API to export a public key directly from the certificate is not present
+* in older versions of MbedTLS, which might be installed by default in
+* old versions of operating systems. Instead, we develop a robust way to
+* export the key bits from the "raw public key" bytes in the certificate.
+* But we need to test that this work properly, and we do that by
+* comparing to the export of key bits from the private key, because for
+* these tests we know the private key.
+*/
+int ptls_mbedtls_get_public_key_info(const unsigned char* pk_raw, size_t pk_raw_len,
+    psa_key_attributes_t* attributes,
+    size_t* key_index, size_t* key_length);
+
+int test_retrieve_pubkey_one(char const* key_path, char const* cert_path)
+{
+    int ret = 0;
+    ptls_context_t ctx = { 0 };
+    mbedtls_x509_crt* chain_head = (mbedtls_x509_crt*)malloc(sizeof(mbedtls_x509_crt));
+    uint8_t pubkey_ref[1024];
+    uint8_t pubkey_val[1024];
+    size_t pubkey_ref_len = 0;
+    size_t pubkey_val_len = 0;
+
+    /* Preparation: load the certificate and the private key */
+    if (chain_head == NULL) {
+        ret = PTLS_ERROR_NO_MEMORY;
+    }
+    if (ret == 0) {
+        mbedtls_x509_crt_init(chain_head);
+
+        if (mbedtls_x509_crt_parse_file(chain_head, cert_path) != 0) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        ret = ptls_mbedtls_load_private_key(&ctx, key_path);
+        if (ret != 0) {
+            printf("Cannot create load private key from: %s, ret = %d (0x%x, -0x%x)\n", key_path, ret, ret, (int16_t)-ret);
+        }
+    }
+    /* Export the pubkey bits from the private key, for reference */
+    if (ret == 0) {
+        ptls_mbedtls_sign_certificate_t* signer = (ptls_mbedtls_sign_certificate_t*)
+            (((unsigned char*)ctx.sign_certificate) - offsetof(struct st_ptls_mbedtls_sign_certificate_t, super));
+        if (psa_export_public_key(signer->key_id, pubkey_ref, sizeof(pubkey_ref), &pubkey_ref_len) != 0) {
+            ret = -1;
+        }
+    }
+    /* Obtain the key bits from the certificate */
+    if (ret == 0) {
+        uint8_t * pk_raw = chain_head->pk_raw.p;
+        size_t pk_raw_len = chain_head->pk_raw.len;
+        size_t key_index;
+        size_t key_length;
+        psa_key_attributes_t attributes = psa_key_attributes_init();
+
+        ret = ptls_mbedtls_get_public_key_info(pk_raw, pk_raw_len,
+            &attributes, &key_index, &key_length);
+
+        if (ret == 0) {
+            /* Compare key bits */
+            if (pubkey_ref_len != key_length ||
+                memcmp(pubkey_ref, chain_head->pk_raw.p + key_index, key_length) != 0) {
+                ret = -1;
+            }
+        }
+        else {
+            printf("Fail");
+        }
+    }
+    /* Clean up */
+    if (ctx.sign_certificate != NULL) {
+        ptls_mbedtls_dispose_sign_certificate(ctx.sign_certificate);
+    }
+    if (chain_head != NULL) {
+        mbedtls_x509_crt_free(chain_head);
+    }
+    if (ret != 0) {
+        printf("Fail\n");
+    }
+
+    return ret;
+}
+
+int test_retrieve_pubkey()
+{
+    int ret = 0;
+
+    if (ret == 0) {
+        ret = test_retrieve_pubkey_one(ASSET_RSA_KEY, ASSET_RSA_CERT);
+    }
+
+    if (ret == 0) {
+        ret = test_retrieve_pubkey_one(ASSET_SECP256R1_KEY, ASSET_SECP256R1_CERT);
+    }
+
+    if (ret == 0) {
+        ret = test_retrieve_pubkey_one(ASSET_SECP384R1_KEY, ASSET_SECP384R1_CERT);
+    }
+
+    if (ret == 0) {
+        ret = test_retrieve_pubkey_one(ASSET_SECP521R1_KEY, ASSET_SECP521R1_CERT);
+    }
+
+    return ret;
+}
+
 /*
 * End to end testing of signature and verifiers:
 * The general scenario is:
@@ -1074,21 +1167,20 @@ int test_sign_verify()
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP256R1_KEY, ASSET_SECP256R1_CERT, ASSET_SECP256R1_CERT, ASSET_SECP256R1_NAME, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP256R1_KEY, ASSET_SECP256R1_CERT, ASSET_TEST_CA, ASSET_SECP256R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP384R1_KEY, ASSET_SECP384R1_CERT, ASSET_SECP384R1_CERT, ASSET_SECP384R1_NAME, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP384R1_KEY, ASSET_SECP384R1_CERT, ASSET_TEST_CA, ASSET_SECP384R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP521R1_KEY, ASSET_SECP521R1_CERT, ASSET_SECP521R1_CERT, ASSET_SECP521R1_NAME, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP521R1_KEY, ASSET_SECP521R1_CERT, ASSET_TEST_CA, ASSET_SECP521R1_NAME, 0, 0);
     }
 
     if (ret == 0) {
-        ret = test_sign_verify_one(ASSET_SECP256R1_PKCS8_KEY, ASSET_SECP256R1_PKCS8_CERT, ASSET_SECP256R1_PKCS8_CERT, ASSET_SECP256R1_PKCS8_NAME, 0, 0);
+        ret = test_sign_verify_one(ASSET_SECP256R1_PKCS8_KEY, ASSET_SECP256R1_PKCS8_CERT, ASSET_TEST_CA, ASSET_SECP256R1_PKCS8_NAME, 0, 0);
     }
 
     return ret;
 }
-#endif
